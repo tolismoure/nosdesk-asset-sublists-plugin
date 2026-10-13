@@ -1,0 +1,46 @@
+{
+  "manifest_version": 1,
+  "name": "asset-categories",
+  "displayName": "Asset Sublists",
+  "version": "2.0.0",
+  "description": "User-created asset sublists, per-sublist attribute columns and asset assignments.",
+  "author": "Instance administrator",
+  "license": "MIT",
+  "engines": {
+    "nosdesk": "=1.1.0",
+    "plugin_api": "1"
+  },
+  "permissions": [
+    "asset:read",
+    "storage:plugin"
+  ],
+  "components": {
+    "Assignment": {
+      "kind": "slot",
+      "slot": "asset.info.panel",
+      "entry": "bundle.js",
+      "context": [
+        "asset"
+      ],
+      "label": "Asset sublist"
+    },
+    "AssetSublists": {
+      "kind": "slot",
+      "slot": "nav.item",
+      "entry": "bundle.js",
+      "label": "Asset sublists",
+      "action": {
+        "label": "Asset sublists"
+      }
+    }
+  },
+  "events": [],
+  "settings": [],
+  "categories": [
+    "ui",
+    "productivity"
+  ],
+  "lifecycle": {
+    "on_uninstall": "preserve"
+  }
+}

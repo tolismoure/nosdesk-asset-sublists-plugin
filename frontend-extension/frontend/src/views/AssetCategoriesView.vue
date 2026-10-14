@@ -7,12 +7,15 @@ import { useAssetCategoryPlugin, type Assignment } from '@/composables/useAssetC
 import { getAssets } from '@/services/assetService';
 import { assetKindsService, type AssetKind } from '@nosdesk/core/services/assetKindsService';
 import { attributeCatalog, attributeValue, assignmentKey, fieldLabel, selectedFields, mapLimit, matchesSublist, type Field } from '@/utils/assetCategoryModel.mjs';
+import { assetLifecycleService } from '@nosdesk/core/services/assetLifecycleService';
+import { latestLifecycleEvent, lifecycleSummary } from '@/utils/assetLifecycleColumns.mjs';
 import { assetLoanService } from '@nosdesk/core/services/assetLoanService';
 import { useUsersDirectory } from '@/composables/useUsersDirectory';
-import type { Asset } from '@nosdesk/core/types/asset';
+import type { Asset, AssetLifecycleEvent } from '@nosdesk/core/types/asset';
 const { getUserHandle } = useUsersDirectory();
 const loanUsers = ref<Record<number, string | null>>({}), loanErrors = ref<Record<number, boolean>>({});
-let loanGeneration = 0;
+let loanGeneration = 0, lifecycleGeneration = 0;
+const lifecycleRows = ref<Record<number, AssetLifecycleEvent | null>>({}), lifecycleErrors = ref<Record<number, boolean>>({});
 const groupStore = useAssetGroupsStore();
 const newGroup = ref(''), draftGroup = ref('');
 const route = useRoute(), router = useRouter();
@@ -50,7 +53,7 @@ const title = computed(() => managing.value ? 'Create a sublist' : selected.valu
 const allSaved = computed(() => categories.value.flatMap(c => [...(c.selectedAttributes ?? []), ...c.children.flatMap(s => s.selectedAttributes ?? [])]));
 // The host extension can read asset-kind schemas; the sandbox SDK cannot.
 // Saved selections stay discoverable even if a field disappears from inventory.
-const catalog = computed(() => [...attributeCatalog(assets.value, kinds.value, allSaved.value).filter(f => f.id !== 'field:loan_user'), { id: 'field:loan_user', label: 'Loan user', sources: ['Current unreturned loan (Assets view only)'] }].sort((a,b) => a.label.localeCompare(b.label)));
+const catalog = computed(() => [...attributeCatalog(assets.value, kinds.value, allSaved.value).filter(f => f.id !== 'field:loan_user'), { id: 'field:loan_user', label: 'Loan user', sources: ['Current unreturned loan (Assets view only)'] }, ...[{id:'field:latest_lifecycle_entry',label:'Latest lifecycle entry'},{id:'field:latest_lifecycle_date',label:'Latest lifecycle date (UTC)'},{id:'field:latest_lifecycle_author',label:'Latest lifecycle author'}].map(f => ({...f,sources:['Latest saved lifecycle transition (Assets view only)']}))].sort((a,b) => a.label.localeCompare(b.label)));
 const filteredCatalog = computed(() => catalog.value.filter(f => (f.label + ' ' + f.id + ' ' + f.sources.join(' ')).toLowerCase().includes(fieldSearch.value.toLowerCase())));
 const choices = computed({ get: () => managing.value ? newAttributes.value : draft.value, set: (v: string[]) => { if (managing.value)
         newAttributes.value = v;
@@ -82,7 +85,31 @@ watch(() => JSON.stringify([ready.value, columns.value.some(f => f.id === 'field
         }
     });
 });
+// Resolve all matching rows before the display cap so sorting includes the
+// entire filtered inventory. Generation checks reject obsolete async reads.
+watch(() => JSON.stringify([ready.value, columns.value.some(f => f.id.startsWith('field:latest_lifecycle_')), visible.value.map(a => a.id)]), async () => {
+    const gen = ++lifecycleGeneration;
+    lifecycleRows.value = {}; lifecycleErrors.value = {};
+    if (!ready.value || !columns.value.some(f => f.id.startsWith('field:latest_lifecycle_'))) return;
+    await mapLimit(visible.value, 4, async (asset) => {
+        try {
+            const event = latestLifecycleEvent(await assetLifecycleService.list(asset.id));
+            if (gen === lifecycleGeneration) lifecycleRows.value[asset.id] = event;
+        } catch { if (gen === lifecycleGeneration) lifecycleErrors.value[asset.id] = true; }
+    });
+});
 function cellValue(asset: Asset, field: string): string {
+    if (field.startsWith('field:latest_lifecycle_')) {
+        if (lifecycleErrors.value[asset.id]) return 'Unavailable';
+        const event = lifecycleRows.value[asset.id];
+        if (event === undefined) return 'Loading…';
+        if (event === null) return '—';
+        if (field === 'field:latest_lifecycle_date') return new Date(event.occurred_at).toISOString();
+        if (field === 'field:latest_lifecycle_entry') return lifecycleSummary(event);
+        if (!event.actor_uuid) return 'Unknown user';
+        const handle = getUserHandle(event.actor_uuid);
+        return handle.user.value?.name ?? (handle.status.value === 'loading' ? 'Loading…' : 'Unknown user');
+    }
     if (field !== 'field:loan_user') return attributeValue(asset, field);
     if (loanErrors.value[asset.id]) return 'Unavailable';
     const uuid = loanUsers.value[asset.id];
@@ -131,7 +158,7 @@ async function load() {
     }
 }
 watch(api, () => { void load(); }, { immediate: true });
-onBeforeUnmount(() => { generation++; loanGeneration++; });
+onBeforeUnmount(() => { generation++; loanGeneration++; lifecycleGeneration++; });
 function filter(key: 'category' | 'subcategory', event: Event) { const value = (event.target as HTMLSelectElement).value; void router.replace({ path: '/assets/categories', query: { category: selected.value, subcategory: child.value, [key]: value, ...(key === 'category' ? { subcategory: '' } : {}) } }); }
 // Re-read taxonomy before writing so validation uses the latest stored state.
 // Storage is still last-writer-wins; this is not optimistic conflict control.

@@ -1,5 +1,12 @@
 # Changelog
 
+## Latest lifecycle columns — 2026-10-14
+
+- Add selectable latest lifecycle transition/reason, UTC date, and author columns.
+- Resolve the latest event by timestamp and stable record ID, with bounded reads only when selected.
+- Preserve prior frontend delivery hashes for guarded updates.
+
+
 ## Asset Sublists 2.1.0 — 2026-10-14
 
 - Add a compact per-asset manual assignment card in the right-hand rail.

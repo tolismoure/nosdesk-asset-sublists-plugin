@@ -7,5 +7,7 @@
   "frontend/src/utils/assetCategoryModel.mjs": null,
   "frontend/src/views/AssetCategoriesView.vue": null,
   "frontend/src/components/assets/AssetSublistAssignment.vue": null,
-  "frontend/src/views/AssetView.vue": "7c0eafa3cc7bb144721d796e2ef3377d7eced33b6d0aa5d54d3659c185e92596"
+  "frontend/src/views/AssetView.vue": "7c0eafa3cc7bb144721d796e2ef3377d7eced33b6d0aa5d54d3659c185e92596",
+  "frontend/src/utils/assetLifecycleColumns.mjs": null,
+  "frontend/src/utils/assetLifecycleColumns.d.mts": null
 }

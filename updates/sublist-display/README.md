@@ -36,3 +36,5 @@ Full frontend production build and Vue/TypeScript check passed with both the Ass
 AssetCategoriesView.vue contains the single updated frontend page; apply.py guards its installation. payload contains the unsigned plugin installer inputs. plugin-source includes the editable plugin source and build/test files. Dockerfile.ui modifies only /app/public in the captured runtime image. Nosdesk-derived UI source retains its Business Source License 1.1 (LICENSE.nosdesk); the independent plugin is MIT licensed (PLUGIN-LICENSE).
 
 Loan user is a selectable column in the Assets sublist view. It shows the current unreturned loan’s borrower name, not the asset’s primary user or the last historical borrower. No active loan displays —; failed reads display Unavailable. Use Refresh assets after a loan changes. The sandbox plugin API does not expose loans, so this column requires the accompanying frontend update.
+
+This frontend update also adds Latest lifecycle entry, Latest lifecycle date (UTC), and Latest lifecycle author as selectable sortable columns. It reads existing lifecycle records; it adds no recording mechanism or backend migration.

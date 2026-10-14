@@ -1,5 +1,12 @@
 # Changelog
 
+
+## Loan user column — 2026-10-14
+
+- Add a selectable Loan user column to the host Assets sublist view, resolving the current unreturned loan to its borrower name.
+- Limit concurrent reads to four and only fetch displayed rows when selected; distinguish unavailable reads and unknown people from no current loan.
+- Preserve earlier delivery hashes for the frontend-only updater.
+
 ## Asset Sublists 2.0.1
 
 - Saved categories/subcategories open to their asset table.

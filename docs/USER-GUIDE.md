@@ -31,3 +31,5 @@ Old/new values preserve false, zero, null and absence distinctly. Actor UUIDs ar
 ## Editing and safety
 
 Shared lists have no additional admin-only write policy beyond the host's runtime access/permission gates. Coordinate simultaneous taxonomy edits. Refresh failures do not authorize resetting malformed or inaccessible stored data. Attribute selection is a display preference, not validation, data deletion or a new asset type.
+
+Loan user is a selectable column in the Assets sublist view. It shows the current unreturned loan’s borrower name, not the asset’s primary user or the last historical borrower. No active loan displays —; failed reads display Unavailable. Use Refresh assets after a loan changes. The sandbox plugin API does not expose loans, so this column requires the accompanying frontend update.

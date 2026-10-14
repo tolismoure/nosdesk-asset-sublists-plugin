@@ -5,7 +5,12 @@ import { useAssetCategoryPlugin, type Assignment } from '@/composables/useAssetC
 import { getAssets } from '@/services/assetService';
 import { assetKindsService, type AssetKind } from '@nosdesk/core/services/assetKindsService';
 import { attributeCatalog, attributeValue, assignmentKey, fieldLabel, selectedFields, mapLimit, type Field } from '@/utils/assetCategoryModel.mjs';
+import { assetLoanService } from '@nosdesk/core/services/assetLoanService';
+import { useUsersDirectory } from '@/composables/useUsersDirectory';
 import type { Asset } from '@nosdesk/core/types/asset';
+const { getUserHandle } = useUsersDirectory();
+const loanUsers = ref<Record<number, string | null>>({}), loanErrors = ref<Record<number, boolean>>({});
+let loanGeneration = 0;
 const route = useRoute(), router = useRouter();
 const { api, categories, error: taxonomyError, refresh, readStorage, readTaxonomy, writeTaxonomy } = useAssetCategoryPlugin();
 const assets = ref<Asset[]>([]), kinds = ref<AssetKind[]>([]), assignments = ref<Record<number, Assignment>>({});
@@ -25,7 +30,7 @@ const title = computed(() => managing.value ? 'Create a sublist' : selected.valu
 const allSaved = computed(() => categories.value.flatMap(c => [...(c.selectedAttributes ?? []), ...c.children.flatMap(s => s.selectedAttributes ?? [])]));
 // The host extension can read asset-kind schemas; the sandbox SDK cannot.
 // Saved selections stay discoverable even if a field disappears from inventory.
-const catalog = computed(() => attributeCatalog(assets.value, kinds.value, allSaved.value));
+const catalog = computed(() => [...attributeCatalog(assets.value, kinds.value, allSaved.value).filter(f => f.id !== 'field:loan_user'), { id: 'field:loan_user', label: 'Loan user', sources: ['Current unreturned loan (Assets view only)'] }].sort((a,b) => a.label.localeCompare(b.label)));
 const filteredCatalog = computed(() => catalog.value.filter(f => (f.label + ' ' + f.id + ' ' + f.sources.join(' ')).toLowerCase().includes(fieldSearch.value.toLowerCase())));
 const choices = computed({ get: () => managing.value ? newAttributes.value : draft.value, set: (v: string[]) => { if (managing.value)
         newAttributes.value = v;
@@ -34,6 +39,31 @@ const choices = computed({ get: () => managing.value ? newAttributes.value : dra
 const columns = computed<Field[]>(() => selectedFields(category.value, child.value).map(id => catalog.value.find(f => f.id === id) ?? { id, label: fieldLabel(id), sources: ['Previously selected'] }));
 watch(() => [definition.value?.id, JSON.stringify(definition.value?.selectedAttributes ?? null), JSON.stringify(category.value?.selectedAttributes ?? null)], () => { draft.value = [...selectedFields(category.value, child.value)]; }, { immediate: true });
 const visible = computed(() => assets.value.filter(a => { const x = assignments.value[a.id]; return (selected.value === '*' || (selected.value === '' ? !x?.category : x?.category === selected.value)) && (!child.value || x?.subcategory === child.value) && [a.name, a.model, a.serial_number, a.asset_tag].some(v => String(v ?? '').toLowerCase().includes(query.value.toLowerCase())); }));
+// Read only the displayed rows, only when this column is selected. Loan records
+// are separate from assets; never confuse the primary user with the borrower.
+watch(() => JSON.stringify([ready.value, columns.value.some(f => f.id === 'field:loan_user'), visible.value.slice(0,200).map(a => a.id)]), async () => {
+    const gen = ++loanGeneration;
+    loanUsers.value = {}; loanErrors.value = {};
+    if (!ready.value || !columns.value.some(f => f.id === 'field:loan_user')) return;
+    await mapLimit(visible.value.slice(0,200), 4, async (asset) => {
+        try {
+            const loans = await assetLoanService.list(asset.id);
+            const borrower = loans.find(loan => !loan.returned_at)?.borrower_user_uuid ?? null;
+            if (gen === loanGeneration) loanUsers.value[asset.id] = borrower;
+        } catch {
+            if (gen === loanGeneration) loanErrors.value[asset.id] = true;
+        }
+    });
+});
+function cellValue(asset: Asset, field: string): string {
+    if (field !== 'field:loan_user') return attributeValue(asset, field);
+    if (loanErrors.value[asset.id]) return 'Unavailable';
+    const uuid = loanUsers.value[asset.id];
+    if (uuid === undefined) return 'Loading…';
+    if (uuid === null) return '—';
+    const handle = getUserHandle(uuid);
+    return handle.user.value?.name ?? (handle.status.value === 'loading' ? 'Loading…' : 'Unknown user');
+}
 // Generation checks prevent an older inventory scan from replacing a newer one.
 async function load() {
     const gen = ++generation;
@@ -73,7 +103,7 @@ async function load() {
     }
 }
 watch(api, () => { void load(); }, { immediate: true });
-onBeforeUnmount(() => { generation++; });
+onBeforeUnmount(() => { generation++; loanGeneration++; });
 function filter(key: 'category' | 'subcategory', event: Event) { const value = (event.target as HTMLSelectElement).value; void router.replace({ path: '/assets/categories', query: { category: selected.value, subcategory: child.value, [key]: value, ...(key === 'category' ? { subcategory: '' } : {}) } }); }
 // Re-read taxonomy before writing so validation uses the latest stored state.
 // Storage is still last-writer-wins; this is not optimistic conflict control.
@@ -181,7 +211,7 @@ function pickAll() { choices.value = [...new Set([...choices.value, ...filteredC
   <template v-if="api&&!managing&&ready">
    <label>Search assets <input v-model="query" class="bg-surface border border-default rounded p-2" /></label>
    <p>{{ visible.length }} matching assets. Showing up to 200; use search to narrow results. Assign assets from Plugins → Asset sublists.</p>
-   <div class="overflow-auto"><table class="w-full text-left"><thead><tr><th scope="col">Asset</th><th v-for="field in columns" :key="field.id" scope="col">{{ field.label }}</th></tr></thead><tbody><tr v-for="a in visible.slice(0,200)" :key="a.id" class="border-t border-default"><td class="py-2"><RouterLink :to="'/assets/'+a.id" class="underline">{{ a.name }}</RouterLink></td><td v-for="field in columns" :key="field.id" class="px-2 whitespace-pre-wrap">{{ attributeValue(a,field.id) }}</td></tr></tbody></table></div>
+   <div class="overflow-auto"><table class="w-full text-left"><thead><tr><th scope="col">Asset</th><th v-for="field in columns" :key="field.id" scope="col">{{ field.label }}</th></tr></thead><tbody><tr v-for="a in visible.slice(0,200)" :key="a.id" class="border-t border-default"><td class="py-2"><RouterLink :to="'/assets/'+a.id" class="underline">{{ a.name }}</RouterLink></td><td v-for="field in columns" :key="field.id" class="px-2 whitespace-pre-wrap">{{ cellValue(a,field.id) }}</td></tr></tbody></table></div>
   </template>
  </div>
 </template>

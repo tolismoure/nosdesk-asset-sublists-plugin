@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Button from '@/components/common/Button.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useAssetCategoryPlugin, type Assignment } from '@/composables/useAssetCategoryPlugin';
@@ -196,11 +197,11 @@ function pickAll() { choices.value = [...new Set([...choices.value, ...filteredC
  <div class="p-6 space-y-4 overflow-auto">
   <h1 class="text-xl font-semibold">{{ title }}</h1>
   <p v-if="managing" class="text-sm text-secondary">You create the sublists. Selected attributes become columns in that sublist; the asset name always remains a link. Attribute selection does not delete values or make fields mandatory.</p>
-  <div class="flex flex-wrap items-center gap-4">
-   <button v-if="api&&!managing&&definition&&!editingColumns" type="button" :disabled="!ready||busy||saving" class="border border-default rounded p-2" aria-controls="sublist-columns-editor" :aria-expanded="editingColumns" @click="editColumns">Edit columns</button>
-   <label v-if="!managing">Category <select :value="selected" class="bg-surface border border-default rounded p-2" @change="filter('category',$event)"><option value="*">All categories</option><option value="">Uncategorised</option><option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option></select></label>
+  <div class="flex flex-wrap items-center gap-3">
+   <Button variant="primary" size="sm" v-if="api&&!managing&&definition&&!editingColumns" type="button" :disabled="!ready||busy||saving" aria-controls="sublist-columns-editor" :aria-expanded="editingColumns" @click="editColumns">Edit columns</Button>
+   <label v-if="!managing">Category <select :value="selected" class="bg-surface-alt border border-default rounded-lg px-3 py-1.5 text-sm" @change="filter('category',$event)"><option value="*">All categories</option><option value="">Uncategorised</option><option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option></select></label>
    <label v-if="!managing&&category?.children.length">Subcategory <select :value="child" class="bg-surface border border-default rounded p-2" @change="filter('subcategory',$event)"><option value="">All subcategories</option><option v-for="s in category?.children??[]" :key="s.id" :value="s.id">{{ s.name }}</option></select></label>
-   <button type="button" :disabled="busy||saving" class="border border-default rounded p-2" @click="load">{{ managing||editingColumns?'Scan attributes':'Refresh assets' }}</button>
+   <Button variant="secondary" size="sm" type="button" :disabled="busy||saving" @click="load" :loading="busy">{{ managing||editingColumns?'Scan attributes':'Refresh assets' }}</Button>
   </div>
   <p v-if="!api" role="status">Install and enable the Asset Sublists 2.0.0 plugin in this workspace.</p>
   <p v-if="error||taxonomyError" role="alert">{{ error||taxonomyError }}</p>
@@ -217,14 +218,14 @@ function pickAll() { choices.value = [...new Set([...choices.value, ...filteredC
    </template>
    <p>{{ catalog.length }} available attributes from {{ assets.length }} accessible assets and {{ kinds.length }} asset-kind definitions. Structured attributes are selected as whole fields and displayed as JSON.</p>
    <label>Find attribute <input v-model="fieldSearch" class="bg-surface border border-default rounded p-2" /></label>
-   <div class="flex gap-3"><button type="button" :disabled="!ready||saving" class="underline" @click="pickAll">Select listed attributes</button><button type="button" :disabled="!ready||saving" class="underline" @click="choices=[]">Clear selection</button></div>
+   <div class="flex gap-3"><Button variant="ghost" size="sm" type="button" :disabled="!ready||saving" @click="pickAll">Select listed attributes</Button><Button variant="ghost" size="sm" type="button" :disabled="!ready||saving" @click="choices=[]">Clear selection</Button></div>
    <fieldset :disabled="!ready||busy||saving" class="grid gap-2 max-h-80 overflow-auto"><legend>Attributes to show ({{ choices.length }} selected)</legend>
     <label v-for="field in filteredCatalog" :key="field.id" class="flex items-start gap-2"><input v-model="choices" type="checkbox" :value="field.id" /><span>{{ field.label }} <small class="text-tertiary">{{ field.id }} — {{ field.sources.join('; ') }}</small></span></label>
    </fieldset>
    <p v-if="managing">No attributes are preselected for a new sublist. With none selected, only the asset name is shown.</p>
-   <button v-if="managing" type="button" :disabled="!ready||busy||saving" class="border border-default rounded p-2" @click="create">{{ saving?'Saving…':'Create sublist' }}</button>
-   <button v-else type="button" :disabled="!ready||busy||saving" class="border border-default rounded p-2" @click="saveAttributes">{{ saving?'Saving…':'Save columns' }}</button>
-   <button v-if="!managing" type="button" :disabled="saving" class="border border-default rounded p-2 ml-2" @click="cancelColumns">Cancel</button>
+   <Button variant="primary" size="sm" v-if="managing" type="button" :disabled="!ready||busy||saving" @click="create" :loading="saving">{{ saving?'Saving…':'Create sublist' }}</Button>
+   <Button variant="primary" size="sm" v-else type="button" :disabled="!ready||busy||saving" @click="saveAttributes" :loading="saving">{{ saving?'Saving…':'Save columns' }}</Button>
+   <Button variant="secondary" size="sm" v-if="!managing" type="button" :disabled="saving" @click="cancelColumns">Cancel</Button>
   </section>
   <template v-if="api&&!managing&&ready">
    <label>Search assets <input v-model="query" class="bg-surface border border-default rounded p-2" /></label>

@@ -37,4 +37,6 @@ AssetCategoriesView.vue contains the single updated frontend page; apply.py guar
 
 Loan user is a selectable column in the Assets sublist view. It shows the current unreturned loan’s borrower name, not the asset’s primary user or the last historical borrower. No active loan displays —; failed reads display Unavailable. Use Refresh assets after a loan changes. The sandbox plugin API does not expose loans, so this column requires the accompanying frontend update.
 
-This frontend update also adds Latest lifecycle entry, Latest lifecycle date (UTC), and Latest lifecycle author as selectable sortable columns. It reads existing lifecycle records; it adds no recording mechanism or backend migration.
+This frontend update also adds Latest lifecycle entry, Latest lifecycle date, and Latest lifecycle author as selectable sortable columns. It reads existing lifecycle records; it adds no recording mechanism or backend migration.
+
+Lifecycle dates use Nosdesk’s native readable date/time formatter and timezone behavior. Sorting still uses the underlying timestamp.

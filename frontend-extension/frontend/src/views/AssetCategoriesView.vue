@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAssetGroupsStore } from '@/stores/assetGroups';
+import { formatDateTime } from '@nosdesk/core/utils/dateUtils';
 import Button from '@/components/common/Button.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
@@ -37,8 +38,8 @@ function toggleSort(field: string) {
 // Sort the full filtered inventory before truncation. Empty and unresolved values
 // stay last in either direction; a stable asset-ID tie break prevents row jitter.
 const sortedAssets = computed(() => [...visible.value].sort((a, b) => {
-    const left = sortField.value === 'field:name' ? a.name : cellValue(a, sortField.value);
-    const right = sortField.value === 'field:name' ? b.name : cellValue(b, sortField.value);
+    const left = sortField.value === 'field:name' ? a.name : sortValue(a, sortField.value);
+    const right = sortField.value === 'field:name' ? b.name : sortValue(b, sortField.value);
     const missing = (value: string) => ['—', 'Loading…', 'Unavailable', 'Unknown user', ''].includes(value);
     if (missing(left) !== missing(right)) return missing(left) ? 1 : -1;
     return (sortDirection.value === 'asc' ? 1 : -1) * collator.compare(left, right) || a.id - b.id;
@@ -53,7 +54,7 @@ const title = computed(() => managing.value ? 'Create a sublist' : selected.valu
 const allSaved = computed(() => categories.value.flatMap(c => [...(c.selectedAttributes ?? []), ...c.children.flatMap(s => s.selectedAttributes ?? [])]));
 // The host extension can read asset-kind schemas; the sandbox SDK cannot.
 // Saved selections stay discoverable even if a field disappears from inventory.
-const catalog = computed(() => [...attributeCatalog(assets.value, kinds.value, allSaved.value).filter(f => f.id !== 'field:loan_user'), { id: 'field:loan_user', label: 'Loan user', sources: ['Current unreturned loan (Assets view only)'] }, ...[{id:'field:latest_lifecycle_entry',label:'Latest lifecycle entry'},{id:'field:latest_lifecycle_date',label:'Latest lifecycle date (UTC)'},{id:'field:latest_lifecycle_author',label:'Latest lifecycle author'}].map(f => ({...f,sources:['Latest saved lifecycle transition (Assets view only)']}))].sort((a,b) => a.label.localeCompare(b.label)));
+const catalog = computed(() => [...attributeCatalog(assets.value, kinds.value, allSaved.value).filter(f => f.id !== 'field:loan_user'), { id: 'field:loan_user', label: 'Loan user', sources: ['Current unreturned loan (Assets view only)'] }, ...[{id:'field:latest_lifecycle_entry',label:'Latest lifecycle entry'},{id:'field:latest_lifecycle_date',label:'Latest lifecycle date'},{id:'field:latest_lifecycle_author',label:'Latest lifecycle author'}].map(f => ({...f,sources:['Latest saved lifecycle transition (Assets view only)']}))].sort((a,b) => a.label.localeCompare(b.label)));
 const filteredCatalog = computed(() => catalog.value.filter(f => (f.label + ' ' + f.id + ' ' + f.sources.join(' ')).toLowerCase().includes(fieldSearch.value.toLowerCase())));
 const choices = computed({ get: () => managing.value ? newAttributes.value : draft.value, set: (v: string[]) => { if (managing.value)
         newAttributes.value = v;
@@ -98,13 +99,20 @@ watch(() => JSON.stringify([ready.value, columns.value.some(f => f.id.startsWith
         } catch { if (gen === lifecycleGeneration) lifecycleErrors.value[asset.id] = true; }
     });
 });
+// Display dates with the native formatter; sort the underlying instant, not
+// the localized day/month text, so ordering stays chronological.
+function sortValue(asset: Asset, field: string): string {
+    const event = lifecycleRows.value[asset.id];
+    if (field === 'field:latest_lifecycle_date' && event) return new Date(event.occurred_at).toISOString();
+    return cellValue(asset, field);
+}
 function cellValue(asset: Asset, field: string): string {
     if (field.startsWith('field:latest_lifecycle_')) {
         if (lifecycleErrors.value[asset.id]) return 'Unavailable';
         const event = lifecycleRows.value[asset.id];
         if (event === undefined) return 'Loading…';
         if (event === null) return '—';
-        if (field === 'field:latest_lifecycle_date') return new Date(event.occurred_at).toISOString();
+        if (field === 'field:latest_lifecycle_date') return formatDateTime(event.occurred_at);
         if (field === 'field:latest_lifecycle_entry') return lifecycleSummary(event);
         if (!event.actor_uuid) return 'Unknown user';
         const handle = getUserHandle(event.actor_uuid);

@@ -33,3 +33,5 @@ Plugin 2.1.0 and the prior sidebar share storage contracts. Rolling the frontend
 ## Migration removal
 
 The history down migration removes added capture/index/metadata support; it does not erase retained audit records or remove upstream main-assets capture. Removing that support while the new reader is still running can break requests. Review dependency order and backups before manual migration changes. A full database restore replaces data and belongs to an explicit recovery operation, not an automatic frontend rollback.
+
+For upstream disposal audit PR #752, use the separate [guarded handover](../asset-history/upgrades/README.md). It is not invoked by the regular installer. The custom disposal trigger must be removed just before the upstream migration creates its replacement; the other three triggers remain. v1.1.1 compatibility is not yet certified.

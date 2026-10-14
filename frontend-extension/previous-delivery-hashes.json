@@ -1,15 +1,21 @@
 {
   "frontend/src/composables/useAssetCategoryPlugin.ts": [
-    "34f1f6ee7ca0895580ddec798dc9c58344119a9ad2b839d27433af5a4afeb7f9"
+    "34f1f6ee7ca0895580ddec798dc9c58344119a9ad2b839d27433af5a4afeb7f9",
+    "aaac279d96803c7de872f5196b330531eeb73fe5d7a5f32610a30a1649cc0ca0"
   ],
   "frontend/src/utils/assetCategoryModel.mjs": [
-    "98ac3ad301be561438b17edf7d229db9e7c6a35ef600948f14c8dd39c2ab48a3"
+    "98ac3ad301be561438b17edf7d229db9e7c6a35ef600948f14c8dd39c2ab48a3",
+    "3fab31a38f0278de6ff861dad757b49f7e7ff36fc2a449e6714b775c8ae24821"
   ],
   "frontend/src/views/AssetCategoriesView.vue": [
     "a5e425a6ec7d3ac6e3d2ce5c1b587dcf726d7595c6590ab2f600c9a176d2a811",
     "476637f4bc36f69a3f0d52b5ccb6a27d1f87aa181686a1e065facdb4108f008a",
     "3f6270fa0995cb6f38c2ae16da4b9de585444effe1dea7473d556ade86dd33ae",
     "bd2c4275560ac1f9acafcd088e5459cb82fd1c9a55a2778651d7d0edc46fe4b9",
-    "6fd37d071bd2f616a56b3321a4b3c107f1e869466a598df02e602c542f72d0a7"
+    "6fd37d071bd2f616a56b3321a4b3c107f1e869466a598df02e602c542f72d0a7",
+    "f8c1cb74d3322b8db9eabb4e0fe336a0a3ada3c37399bf057c01c91ad0aface3"
+  ],
+  "frontend/src/utils/assetCategoryModel.d.mts": [
+    "5474caf4c64e9e4fdd848c480689f59037710f0e5e7db545dc49e169e7fc3fc4"
   ]
 }

@@ -4,7 +4,7 @@ User-created asset categories and subcategories for **Nosdesk 1.1.0**, with per-
 
 ## What is included
 
-- **Asset Sublists 2.0.1:** a signed sandbox plugin. Create your own lists, select display attributes, and classify assets from **Plugins → Asset sublists**. No sample categories are seeded and no sublist panel is added to individual asset pages.
+- **Asset Sublists 2.1.0:** a signed sandbox plugin. Create your own lists, select display attributes, and classify assets from **Plugins → Asset sublists**. No sample categories are seeded. The accompanying frontend adds a compact manual-assignment card on the asset’s right-hand rail and optional asset-group associations on sublists.
 - **Assets sidebar extension:** lists directly beneath Assets, plus a category/subcategory filter and asset table. Saved lists open in browsing mode; **Edit columns** opens the checklist, and Save or Cancel closes it.
 - **Asset History 1.0.0:** a read-only plugin plus the scoped backend/SDK support it requires. It reads retained asset and related changes, including sublist assignments and optional shared category configuration changes.
 - **Frontend-only updater:** installs the saved-list display changes on an existing history-enabled deployment while retaining its exact backend image. No Rust rebuild is required for this updater.

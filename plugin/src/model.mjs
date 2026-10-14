@@ -17,7 +17,7 @@ function validFieldId(s) {
 function validTaxonomy(t) {
   if (!t || t.version !== 1 || !Array.isArray(t.categories)) return false;
   const ids = /* @__PURE__ */ new Set();
-  const valid = (x) => x && typeof x.id === "string" && /^[a-z0-9-]{1,80}$/.test(x.id) && !ids.has(x.id) && ids.add(x.id) && typeof x.name === "string" && x.name.trim().length > 0 && x.name.length <= 80 && (x.selectedAttributes === void 0 || Array.isArray(x.selectedAttributes) && x.selectedAttributes.length <= 500 && x.selectedAttributes.every(validFieldId) && new Set(x.selectedAttributes).size === x.selectedAttributes.length);
+  const valid = (x) => x && typeof x.id === "string" && /^[a-z0-9-]{1,80}$/.test(x.id) && !ids.has(x.id) && ids.add(x.id) && typeof x.name === "string" && x.name.trim().length > 0 && x.name.length <= 80 && ((x.assetGroupId === void 0 || x.assetGroupId === null || Number.isSafeInteger(x.assetGroupId) && x.assetGroupId > 0) && (x.selectedAttributes === void 0 || Array.isArray(x.selectedAttributes) && x.selectedAttributes.length <= 500 && x.selectedAttributes.every(validFieldId) && new Set(x.selectedAttributes).size === x.selectedAttributes.length));
   return t.categories.length <= 100 && t.categories.every((c) => valid(c) && Array.isArray(c.children) && c.children.length <= 100 && c.children.every(valid));
 }
 /** Resolve saved IDs against the current taxonomy. Deleted or unknown categories become unclassified instead of inventing a label. */
@@ -25,12 +25,25 @@ function normalizeAssignment(a, t) {
   const c = t.categories.find((c2) => c2.id === a?.category);
   return { category: c?.id || "", subcategory: c?.children.some((s) => s.id === a?.subcategory) ? a.subcategory : "" };
 }
+/** Group links are additive, never a mutation of native asset-group membership.
+ * A parent list includes its children's group-derived assets as well. */
+function matchesSublist(asset, assignment, category, childId = "") {
+  if (!category) return false;
+  const groupMatch = (entry) => Number.isSafeInteger(entry?.assetGroupId) &&
+    Array.isArray(asset?.asset_groups) && asset.asset_groups.some(g => g.id === entry.assetGroupId);
+  if (childId) {
+    const child = category.children.find(c => c.id === childId);
+    return !!child && (assignment?.category === category.id && assignment?.subcategory === childId || groupMatch(child));
+  }
+  return assignment?.category === category.id || groupMatch(category) || category.children.some(groupMatch);
+}
 /** Filter the complete accessible inventory before the UI applies its 200-row display cap. An empty category means unclassified; * means all. */
-function filteredAssets(assets, assignments, category, subcategory, query) {
+function filteredAssets(assets, assignments, category, subcategory, query, taxonomy = null) {
   const q = query.trim().toLowerCase();
   return assets.filter((a) => {
     const x = assignments[a.id] || {};
-    return (category === "*" || (category === "" ? !x.category : x.category === category)) && (!subcategory || x.subcategory === subcategory) && [a.name, a.serial_number, a.model, a.asset_tag].some((v) => String(v ?? "").toLowerCase().includes(q));
+    const member = taxonomy ? (category === "*" || (category === "" ? !taxonomy.categories.some(c => matchesSublist(a, x, c)) : matchesSublist(a, x, taxonomy.categories.find(c => c.id === category), subcategory))) : (category === "*" || (category === "" ? !x.category : x.category === category)) && (!subcategory || x.subcategory === subcategory);
+    return member && [a.name, a.serial_number, a.model, a.asset_tag].some((v) => String(v ?? "").toLowerCase().includes(q));
   });
 }
 /** Bound concurrent storage reads while preserving input order. Each worker claims its index before awaiting. */
@@ -98,6 +111,7 @@ export {
   fieldLabel,
   filteredAssets,
   mapLimit,
+  matchesSublist,
   normalizeAssignment,
   selectedFields,
   taxonomyKey,

@@ -1,17 +1,20 @@
 <script setup lang="ts">
+import { useAssetGroupsStore } from '@/stores/assetGroups';
 import Button from '@/components/common/Button.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useAssetCategoryPlugin, type Assignment } from '@/composables/useAssetCategoryPlugin';
 import { getAssets } from '@/services/assetService';
 import { assetKindsService, type AssetKind } from '@nosdesk/core/services/assetKindsService';
-import { attributeCatalog, attributeValue, assignmentKey, fieldLabel, selectedFields, mapLimit, type Field } from '@/utils/assetCategoryModel.mjs';
+import { attributeCatalog, attributeValue, assignmentKey, fieldLabel, selectedFields, mapLimit, matchesSublist, type Field } from '@/utils/assetCategoryModel.mjs';
 import { assetLoanService } from '@nosdesk/core/services/assetLoanService';
 import { useUsersDirectory } from '@/composables/useUsersDirectory';
 import type { Asset } from '@nosdesk/core/types/asset';
 const { getUserHandle } = useUsersDirectory();
 const loanUsers = ref<Record<number, string | null>>({}), loanErrors = ref<Record<number, boolean>>({});
 let loanGeneration = 0;
+const groupStore = useAssetGroupsStore();
+const newGroup = ref(''), draftGroup = ref('');
 const route = useRoute(), router = useRouter();
 const { api, categories, error: taxonomyError, refresh, readStorage, readTaxonomy, writeTaxonomy } = useAssetCategoryPlugin();
 const assets = ref<Asset[]>([]), kinds = ref<AssetKind[]>([]), assignments = ref<Record<number, Assignment>>({});
@@ -55,8 +58,13 @@ const choices = computed({ get: () => managing.value ? newAttributes.value : dra
         draft.value = v; } });
 const columns = computed<Field[]>(() => selectedFields(category.value, child.value).map(id => catalog.value.find(f => f.id === id) ?? { id, label: fieldLabel(id), sources: ['Previously selected'] }));
 watch(columns, () => { if (sortField.value !== 'field:name' && !columns.value.some(f => f.id === sortField.value)) { sortField.value = 'field:name'; sortDirection.value = 'asc'; } });
-watch(() => [definition.value?.id, JSON.stringify(definition.value?.selectedAttributes ?? null), JSON.stringify(category.value?.selectedAttributes ?? null)], () => { draft.value = [...selectedFields(category.value, child.value)]; }, { immediate: true });
-const visible = computed(() => assets.value.filter(a => { const x = assignments.value[a.id]; return (selected.value === '*' || (selected.value === '' ? !x?.category : x?.category === selected.value)) && (!child.value || x?.subcategory === child.value) && [a.name, a.model, a.serial_number, a.asset_tag].some(v => String(v ?? '').toLowerCase().includes(query.value.toLowerCase())); }));
+watch(() => [definition.value?.id, JSON.stringify(definition.value?.selectedAttributes ?? null), JSON.stringify(category.value?.selectedAttributes ?? null)], () => { draft.value = [...selectedFields(category.value, child.value)]; draftGroup.value = String(definition.value?.assetGroupId ?? ''); }, { immediate: true });
+const visible = computed(() => assets.value.filter(a => {
+    const x = assignments.value[a.id];
+    const inAny = categories.value.some(c => matchesSublist(a, x, c));
+    return (selected.value === '*' || (selected.value === '' ? !inAny : matchesSublist(a, x, category.value, child.value))) &&
+        [a.name, a.model, a.serial_number, a.asset_tag].some(value => String(value ?? '').toLowerCase().includes(query.value.toLowerCase()));
+}));
 // Read the matching rows only when this column is selected. All borrowers
 // must be resolved so Loan user sorting precedes the 200-row display limit. Loan records
 // are separate from assets; never confuse the primary user with the borrower.
@@ -99,6 +107,7 @@ async function load() {
     busy.value = true;
     try {
         await refresh();
+        await groupStore.load(true);
         const [rows, schemas] = await Promise.all([getAssets(), assetKindsService.list().then(value => ({ value, error: '' })).catch(() => ({ value: [] as AssetKind[], error: 'Defined attribute schemas could not be read. The checklist still includes core fields and keys found in accessible assets.' }))]);
         const pairs = await mapLimit(rows, 8, async (a) => [a.id, await readStorage<Assignment>(assignmentKey(a.id))] as const);
         if (gen !== generation)
@@ -146,14 +155,14 @@ async function create() {
             throw Error('Maximum 100 sublists per level.');
         if (list.some(c => c.name.toLowerCase() === name.toLowerCase()))
             throw Error('That name already exists at this level.');
-        const entry = { id: crypto.randomUUID(), name, selectedAttributes: [...newAttributes.value], ...(parent ? {} : { children: [] }) };
+        const entry = { id: crypto.randomUUID(), name, selectedAttributes: [...newAttributes.value], assetGroupId: newGroup.value ? Number(newGroup.value) : null, ...(parent ? {} : { children: [] }) };
         if (parent)
             parent.children.push(entry);
         else
             t.categories.push({ ...entry, children: [] });
         await writeTaxonomy(t);
         newName.value = '';
-        newAttributes.value = [];
+        newAttributes.value = []; newGroup.value = '';
         await router.push({ path: '/assets/categories', query: { category: parent?.id ?? entry.id, ...(parent ? { subcategory: entry.id } : {}) } });
         notice.value = 'Sublist created. Expand/reopen Assets to refresh its links.';
     }
@@ -177,6 +186,7 @@ async function saveAttributes() {
         if (!entry)
             throw Error('Sublist no longer exists. Refresh and retry.');
         entry.selectedAttributes = picked;
+        entry.assetGroupId = draftGroup.value ? Number(draftGroup.value) : null;
         await writeTaxonomy(t);
         notice.value = 'Columns saved.';
         editingColumns.value = false;
@@ -189,8 +199,8 @@ async function saveAttributes() {
     }
 }
 // Edit a draft only. Cancel and route changes never persist column choices.
-function editColumns() { draft.value = [...selectedFields(category.value, child.value)]; fieldSearch.value = ''; editingColumns.value = true; }
-function cancelColumns() { draft.value = [...selectedFields(category.value, child.value)]; editingColumns.value = false; }
+function editColumns() { draftGroup.value = String(definition.value?.assetGroupId ?? ''); draft.value = [...selectedFields(category.value, child.value)]; fieldSearch.value = ''; editingColumns.value = true; }
+function cancelColumns() { draftGroup.value = String(definition.value?.assetGroupId ?? ''); draft.value = [...selectedFields(category.value, child.value)]; editingColumns.value = false; }
 function pickAll() { choices.value = [...new Set([...choices.value, ...filteredCatalog.value.map(f => f.id)])]; }
 </script>
 <template>
@@ -211,11 +221,14 @@ function pickAll() { choices.value = [...new Set([...choices.value, ...filteredC
   <p v-if="api&&!categories.length&&!busy">No sublists have been created. Use Create sublist to add your first one.</p>
   <!-- Setup is explicit: creation mode or the saved-list Edit columns action. -->
   <section v-if="api&&(managing||(definition&&editingColumns))" id="sublist-columns-editor" class="border border-default rounded p-4 space-y-3">
-   <h2 class="font-semibold">{{ managing?'New sublist and attributes':'Columns for '+definition?.name }}</h2>
+   <h2 class="font-semibold">{{ managing?'New sublist and attributes':'Columns and membership for '+definition?.name }}</h2>
    <template v-if="managing">
     <label>Name <input v-model="newName" maxlength="80" :disabled="saving" class="bg-surface border border-default rounded p-2" /></label>
     <label>Parent <select v-model="newParent" :disabled="saving" class="bg-surface border border-default rounded p-2"><option value="">Directly under Assets</option><option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }} (subcategory)</option></select></label>
    </template>
+   <label class="block">Include assets from group <select :value="managing?newGroup:draftGroup" :disabled="saving||!!groupStore.error" class="bg-surface-alt border border-default rounded-lg px-3 py-1.5 text-sm" @change="managing?newGroup=($event.target as HTMLSelectElement).value:draftGroup=($event.target as HTMLSelectElement).value"><option value="">No linked group (manual assignments only)</option><option v-for="g in groupStore.active" :key="g.id" :value="String(g.id)">{{ g.name }}</option><option v-if="(managing?newGroup:draftGroup)&&!groupStore.active.some(g=>String(g.id)===(managing?newGroup:draftGroup))" :value="managing?newGroup:draftGroup">Unavailable group #{{ managing?newGroup:draftGroup }}</option></select></label>
+   <p class="text-sm text-secondary">Group members are included automatically alongside manual assignments. Linking a group does not change its membership.</p>
+   <p v-if="groupStore.error" role="alert">Asset groups could not be loaded. Existing group links are retained; refresh to retry.</p>
    <p>{{ catalog.length }} available attributes from {{ assets.length }} accessible assets and {{ kinds.length }} asset-kind definitions. Structured attributes are selected as whole fields and displayed as JSON.</p>
    <label>Find attribute <input v-model="fieldSearch" class="bg-surface border border-default rounded p-2" /></label>
    <div class="flex gap-3"><Button variant="ghost" size="sm" type="button" :disabled="!ready||saving" @click="pickAll">Select listed attributes</Button><Button variant="ghost" size="sm" type="button" :disabled="!ready||saving" @click="choices=[]">Clear selection</Button></div>
@@ -229,7 +242,7 @@ function pickAll() { choices.value = [...new Set([...choices.value, ...filteredC
   </section>
   <template v-if="api&&!managing&&ready">
    <label>Search assets <input v-model="query" class="bg-surface border border-default rounded p-2" /></label>
-   <p>{{ visible.length }} matching assets. Showing up to 200; use search to narrow results. Assign assets from Plugins → Asset sublists.</p>
+   <p>{{ visible.length }} matching assets. Showing up to 200; use search to narrow results. Assign assets from the Asset sublist card on each asset, or link an asset group in Edit columns.</p>
    <div class="overflow-auto"><table class="w-full text-left"><thead><tr>
     <th v-for="field in tableHeaders" :key="field.id" scope="col" :aria-sort="sortField===field.id?(sortDirection==='asc'?'ascending':'descending'):'none'" class="px-3 py-2 first:pl-4 text-3xs font-semibold uppercase tracking-wider text-tertiary bg-surface border-b border-subtle">
      <button type="button" class="flex items-center gap-1 w-full text-left uppercase tracking-wider hover:text-primary rounded focus-visible:outline focus-visible:outline-2" :aria-label="'Sort by '+field.label+(sortField===field.id&&sortDirection==='asc'?', descending':', ascending')" @click="toggleSort(field.id)">{{ field.label }} <span v-if="sortField===field.id" class="text-primary" aria-hidden="true">{{ sortDirection==='asc'?'↑':'↓' }}</span></button>

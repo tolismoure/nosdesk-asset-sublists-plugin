@@ -14,7 +14,7 @@ The sandbox plugins use Nosdesk's supported lifecycle and SDK. The host patches 
 | Read asset audit history | No stock history reader | Scoped assets.history bridge and backend route |
 | Capture previously unaudited relationships | Not possible from browser events | Transactional database triggers |
 
-The current Sublists manifest registers only the standalone page. Its reusable controller can accept an asset context for backward compatibility/testing, but it is not registered on individual asset pages. Asset History separately registers asset.info.panel and nav.item.
+The current Sublists manifest registers only the standalone page. Its reusable controller can accept an asset context for backward compatibility/testing. The custom frontend, rather than a sandbox registration, renders the compact per-asset assignment card. Asset History separately registers asset.info.panel and nav.item.
 
 ## Sublist read/write flow
 
@@ -60,3 +60,5 @@ These implementation references were inspected at the supported tag:
 - [Storage repository contract](https://github.com/nosdesk/nosdesk/blob/v1.1.0/backend/src/repository/plugins.rs)
 
 Guarded installers compare the exact Git commit and known file hashes before writing. They accept specified previous deliveries, not arbitrary local changes. Source patches do not become a supported upstream API merely because they are installed.
+
+The native frontend reads asset groups with Nosdesk’s existing asset-group store and evaluates `asset_groups` on accessible asset responses. The sandbox API has no group-management operation; group selectors and the right-hand assignment card belong to the host frontend extension. Group links are stored in the existing taxonomy key, so the history extension can audit those shared configuration changes without an additional backend patch.

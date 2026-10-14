@@ -84,7 +84,7 @@ python3 -m zipfile -e ~/nosdesk-sublist-display-update.zip ~
 bash ~/nosdesk-sublist-display-update/install.sh
 ~~~
 
-The updater checks the pinned source and known page hash, captures the exact running history image, builds the frontend, preserves compose.history.yaml while replacing its image reference, checks readiness, and signs/installs Asset Sublists 2.0.1. The Rust backend and migration binaries come from the captured runtime image; there is no Rust build in this path.
+The updater checks the pinned source and known hashes for all managed frontend files, captures the exact running history image, builds the frontend, preserves compose.history.yaml while replacing its image reference, checks readiness, and signs/installs Asset Sublists 2.1.0. The Rust backend and migration binaries come from the captured runtime image; there is no Rust build in this path.
 
 It closes the saved-list setup by default and removes the individual-asset sublist panel. Categories, selected columns, assignment keys and plugin identity remain unchanged. Choose Edit columns only when needed, and assign assets from the standalone page.
 

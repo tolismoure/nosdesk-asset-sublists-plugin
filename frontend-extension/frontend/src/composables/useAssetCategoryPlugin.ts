@@ -3,7 +3,7 @@
 import {computed,ref,watch} from 'vue';
 import {getLoadedPlugins} from '@/plugins/loader';
 import pluginService from '@nosdesk/core/services/pluginService';
-import {defaults,validTaxonomy,taxonomyKey,type Category,type Taxonomy} from '@/utils/assetCategoryModel.mjs';
+import {defaults,validTaxonomy,taxonomyKey,assignmentKey,type Category,type Taxonomy} from '@/utils/assetCategoryModel.mjs';
 export type AssetCategory=Category;
 export interface Assignment {category:string;subcategory:string}
 export function useAssetCategoryPlugin(){
@@ -11,9 +11,10 @@ export function useAssetCategoryPlugin(){
  const api=computed(()=>Boolean(plugin.value));
  const categories=ref<Category[]>([]),error=ref('');let revision=0;
  async function readStorage<T>(key:string):Promise<T|null>{const p=plugin.value;if(!p)throw Error('Enable Asset Categories in this workspace.');return (await pluginService.getStorage(p.plugin.uuid,key)).value as T|null;}
+ async function writeAssignment(id:number,value:Assignment){const t=await readTaxonomy();if(value.category && !t.categories.some(c=>c.id===value.category && (!value.subcategory || c.children.some(s=>s.id===value.subcategory))))throw Error('Sublist no longer exists. Refresh and retry.');if(!value.category && value.subcategory)throw Error('Select a parent sublist.');const p=plugin.value;if(!p)throw Error('Plugin is no longer enabled.');await pluginService.setStorage(p.plugin.uuid,{key:assignmentKey(id),value});}
  async function writeTaxonomy(value:Taxonomy){if(!validTaxonomy(value))throw Error('Invalid category data.');const p=plugin.value;if(!p)throw Error('Plugin is no longer enabled.');await pluginService.setStorage(p.plugin.uuid,{key:taxonomyKey,value});categories.value=value.categories;}
  async function readTaxonomy(){const stored=await readStorage<unknown>(taxonomyKey);if(stored!==null&&!validTaxonomy(stored))throw Error('Invalid category data; nothing overwritten.');return stored===null?defaults():stored as Taxonomy;}
  async function refresh(){const rev=++revision;error.value='';if(!api.value){categories.value=[];return;}try{const t=await readTaxonomy();if(rev===revision)categories.value=t.categories;}catch(e){if(rev===revision){categories.value=[];error.value=e instanceof Error?e.message:'Categories could not be loaded.';}throw e;}}
  watch(api,()=>{void refresh().catch(()=>{});},{immediate:true});
- return {api,categories,error,refresh,readStorage,readTaxonomy,writeTaxonomy};
+ return {api,categories,error,refresh,readStorage,readTaxonomy,writeTaxonomy,writeAssignment};
 }

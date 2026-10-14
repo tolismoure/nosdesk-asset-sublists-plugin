@@ -49,7 +49,7 @@ def main():
     archive(args.out / "nosdesk-asset-sublists.zip", "nosdesk-asset-sublists", sublists)
     archive(args.out / "nosdesk-asset-history.zip", "nosdesk-asset-history", files(ROOT / "asset-history"))
     update = list(files(ROOT / "updates/sublist-display"))
-    update.append((ROOT / "frontend-extension/frontend/src/views/AssetCategoriesView.vue", Path("AssetCategoriesView.vue")))
+    update.extend((file, Path('frontend-extension') / relative) for file, relative in files(ROOT / 'frontend-extension'))
     update.extend((file, Path("payload") / relative) for file, relative in files(ROOT / "plugin/payload"))
     update.extend((file, Path("plugin-source") / relative) for file, relative in files(ROOT / "plugin"))
     archive(args.out / "nosdesk-sublist-display-update.zip", "nosdesk-sublist-display-update", update)

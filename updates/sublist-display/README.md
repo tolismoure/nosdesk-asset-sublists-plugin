@@ -2,9 +2,9 @@
 
 See the [main installation guide](../../docs/INSTALLATION.md#saved-list-display-update). Release archives include the canonical page and plugin payload; a Git checkout resolves them from the repository.
 
-Saved categories and subcategories now open directly to the asset table. The attribute checklist appears only after choosing Edit columns, and closes on Save, Cancel or navigation. The full new-sublist setup appears only on Create sublist. Asset Sublists 2.0.1 registers only its standalone Plugins page; individual asset pages no longer show the Asset sublist panel. Assign assets from Plugins -> Asset sublists using its asset picker and category/subcategory controls.
+Saved categories and subcategories now open directly to the asset table. The attribute checklist appears only after choosing Edit columns, and closes on Save, Cancel or navigation. The full new-sublist setup appears only on Create sublist. Asset Sublists 2.1.0 registers its standalone Plugins page. The accompanying host frontend renders a compact Asset sublist card in each asset’s right-hand rail, alongside Asset groups, for manual category/subcategory assignment.
 
-This update keeps plugin identity asset-categories and storage keys unchanged. It updates the same plugin so existing categories, column choices, assignments and history linkage are retained. It does not register an individual-asset assignment panel.
+This update keeps plugin identity asset-categories and storage keys unchanged. It updates the same plugin so existing categories, column choices, assignments and history linkage are retained. The card is a host frontend extension; no sandbox assignment panel is registered.
 
 ## Install on your existing server
 
@@ -23,7 +23,7 @@ python3 -m zipfile -e "$HOME/nosdesk-sublist-display-update.zip" "$HOME" && bash
 
 Wait for UPDATE COMPLETE, then refresh Nosdesk with Ctrl+Shift+R.
 
-The installer requires the existing source ~/nosdesk-source-assets-1.1.0 and four Compose files under ~/nosdesk. It accepts only the known previous sublist-page hash or this updated file. Other edits stop it. It builds only the frontend and layers it on the exact currently running history-enabled image; no Rust backend compilation is needed. It backs up the original source page and compose.history.yaml under ~/nosdesk-ui-backups, preserves the existing configuration while changing its image reference, checks application/database/Redis readiness, and locally signs/installs the plugin. The progress display counts four completed steps and updates elapsed time every ten seconds.
+The installer requires the existing source ~/nosdesk-source-assets-1.1.0 and four Compose files under ~/nosdesk. It validates every managed frontend file against the pinned upstream baseline or exact prior delivery hashes before writing anything. Other edits stop it. It builds only the frontend and layers it on the exact currently running history-enabled image; no Rust backend compilation is needed. It backs up all managed original source files and compose.history.yaml under ~/nosdesk-ui-backups, preserves the existing configuration while changing its image reference, checks application/database/Redis readiness, and locally signs/installs the plugin. The progress display counts four completed steps and updates elapsed time every ten seconds.
 
 A failed deployment attempts to restart the exact previous image. If plugin installation fails after readiness, the healthy frontend remains running; rerunning install.sh can retry using cached frontend layers. Logs are in the displayed backup folder. This installation has not been run on your server by Codex.
 

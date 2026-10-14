@@ -1,5 +1,13 @@
 # Changelog
 
+## Asset Sublists 2.1.0 — 2026-10-14
+
+- Add a compact per-asset manual assignment card in the right-hand rail.
+- Link categories/subcategories to a native asset group during creation or column editing.
+- Combine manual and live group membership without duplicates, preserving existing storage and history.
+- Update the frontend installer to validate and back up every managed file before applying the extension.
+
+
 
 ## Loan user column — 2026-10-14
 

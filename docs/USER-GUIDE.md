@@ -16,7 +16,7 @@ Open a saved list and click Edit columns. Adjust the checkboxes and choose Save 
 
 ## Assign assets
 
-Use Plugins → Asset sublists. Choose an asset in Asset to classify, select a category and optional subcategory, and Save assignment. The individual asset page does not contain sublist controls in version 2.0.1. Choosing Uncategorised clears the classification.
+Open a device in Assets. In the right-hand Asset sublist card, choose a sublist and optional subcategory, then Save assignment. Choosing No manual assignment clears that explicit classification. The standalone Plugins → Asset sublists picker remains available.
 
 Each asset has one category/subcategory assignment. Storage is workspace/plugin scoped. Refresh the list to see updated assignments, and reopen the Assets navigation if a newly created list link has not appeared. Lists show up to 200 matches; use Search assets to narrow results.
 
@@ -35,3 +35,5 @@ Shared lists have no additional admin-only write policy beyond the host's runtim
 Loan user is a selectable column in the Assets sublist view. It shows the current unreturned loan’s borrower name, not the asset’s primary user or the last historical borrower. No active loan displays —; failed reads display Unavailable. Use Refresh assets after a loan changes. The sandbox plugin API does not expose loans, so this column requires the accompanying frontend update.
 
 All Assets sublist table headers are sortable: click or activate a header with the keyboard to sort ascending, then again for descending. The arrow and accessible sort state identify the active column. Sorting uses natural text/numeric ordering and applies before the 200-row display cap; empty or unavailable values stay last. Loan user names load for all matching assets when selected, so sorting settles as those reads complete.
+
+To include a native asset group automatically, select Include assets from group during Create sublist or Edit columns, then save. This links one group per list or subcategory. Group-linked assets appear alongside manually assigned assets without duplicates. A parent also shows assets included through its child groups. Clearing a manual assignment does not override a group link. Group membership changes appear after Refresh assets.

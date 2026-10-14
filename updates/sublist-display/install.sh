@@ -53,7 +53,7 @@ UI_OLD_REF="$(docker inspect "$UI_CONTAINER" --format '{{.Config.Image}}')"
 cp -p compose.history.yaml "$UI_BACKUP/compose.history.yaml"
 printf 'services:\n  nosdesk:\n    image: %s\n' "$UI_OLD_IMAGE" > "$UI_BACKUP/rollback.yaml"
 cp -p "$UI_SOURCE/frontend/src/views/AssetCategoriesView.vue" "$UI_BACKUP/AssetCategoriesView.before.vue"
-python3 "$HISTORY_PACKAGE_DIR/apply.py" "$UI_SOURCE"
+python3 "$HISTORY_PACKAGE_DIR/apply.py" "$UI_SOURCE" --backup "$UI_BACKUP/source-before"
 history_progress_complete 1 'Source prepared'
 history_progress_start 1 'Building the frontend only'
 UI_BASE="nosdesk-local:sublist-ui-base-$UI_RUN"
@@ -108,11 +108,11 @@ UI_PLUGIN_TEMP="$(ui_compose exec -T nosdesk mktemp -d /tmp/sublist-display.XXXX
 [[ "$UI_PLUGIN_TEMP" =~ ^/tmp/sublist-display\.[A-Za-z0-9]+$ ]]
 docker cp "$UI_PAYLOAD" "$UI_CONTAINER:$UI_PLUGIN_TEMP/payload"
 ui_compose exec -T --user 0 nosdesk chown -R 1001:1001 "$UI_PLUGIN_TEMP"
-ui_compose exec -T nosdesk nosdesk-cli plugin sign "$UI_PLUGIN_TEMP/payload" --local --out "$UI_PLUGIN_TEMP/asset-sublists-2.0.1.zip"
-ui_compose exec -T nosdesk nosdesk-cli plugin verify "$UI_PLUGIN_TEMP/asset-sublists-2.0.1.zip"
-ui_compose exec -T nosdesk nosdesk-cli plugin install "$UI_PLUGIN_TEMP/asset-sublists-2.0.1.zip"
+ui_compose exec -T nosdesk nosdesk-cli plugin sign "$UI_PLUGIN_TEMP/payload" --local --out "$UI_PLUGIN_TEMP/asset-sublists-2.1.0.zip"
+ui_compose exec -T nosdesk nosdesk-cli plugin verify "$UI_PLUGIN_TEMP/asset-sublists-2.1.0.zip"
+ui_compose exec -T nosdesk nosdesk-cli plugin install "$UI_PLUGIN_TEMP/asset-sublists-2.1.0.zip"
 history_progress_complete 4 'Saved-sublist display and plugin updated'
 printf '\nUPDATE COMPLETE. Refresh Nosdesk with Ctrl+Shift+R.\n'
 printf 'Saved sublists show the asset table. Use Edit columns to change attributes.\n'
-printf 'Asset pages no longer show Asset sublist controls. Assign assets from Plugins -> Asset sublists.\n'
+printf 'Assign each asset from its right-hand Asset sublist card, or link an asset group when creating/editing a sublist.\n'
 printf 'Configuration backup and log: %s\n' "$UI_BACKUP"

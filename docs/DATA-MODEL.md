@@ -4,7 +4,7 @@
 
 | Plugin | Version | Storage/API purpose |
 | --- | --- | --- |
-| asset-categories | 2.0.1 | Existing sublist identity; preserve it during updates |
+| asset-categories | 2.1.0 | Existing sublist identity; preserve it during updates |
 | asset-history | 1.0.0 | Read-only viewer and scoped history grant |
 
 Updating the same installed plugin retains its database identity and storage. Deleting/recreating a plugin can change its identity and leave earlier audit rows unresolved. Installation must use the supported verified installer rather than inserting plugin rows manually.
@@ -45,7 +45,7 @@ Key: asset-42-category-v1 for native asset ID 42:
 {"category":"computers","subcategory":"laptops"}
 ~~~
 
-Empty strings represent unclassified/no child. Unknown IDs resolve to unclassified rather than a fabricated name. Assignment storage does not update the asset record.
+Empty strings represent no manual assignment/no child; linked groups can still include the asset in a sublist. Unknown IDs resolve to unclassified rather than a fabricated name. Assignment storage does not update the asset record.
 
 ## Field IDs and catalog discovery
 
@@ -71,3 +71,7 @@ Native asset, supported related record and plugin_data changes use server audit 
 The upstream trigger supplies audit context/redaction. A missing workspace context fails the added captures instead of silently writing unauditable changes. This does not guarantee resistance to privileged trigger suppression or database maintenance.
 
 Positive AUDIT_LOG_RETENTION_DAYS controls retention; invalid/nonpositive values fall back to 540 days. Monthly partition pruning makes this a policy rather than an exact per-record cutoff guarantee. Deleted file contents are not retained by metadata history.
+
+## Optional group membership (2.1.0)
+
+Each category or child may store `assetGroupId`, a positive integer or null. Missing/null preserves manual-only behavior. Membership is the union of explicit assignment and membership in the linked native `asset_groups` IDs. A parent includes assets in any linked child group; child views require that child’s manual assignment or group. Uncategorised means no manual or group-derived membership. Directory groups (`groups`/UUIDs) are deliberately excluded. Assets can appear in multiple group-linked lists while retaining one manual assignment. Removing a group link does not erase manual assignments or alter native groups. Group membership is evaluated from current accessible asset records, not copied into plugin storage.

@@ -293,7 +293,7 @@ function mountPanel(root, api, current, config = {}) {
       head.replaceChildren();
       const fields = selectedFields(t.categories.find((c) => c.id === tab), sub);
       for (const label of ["Asset", ...fields.map((id) => labels.find((f) => f.id === id)?.label || fieldLabel(id))]) el("th", label, head).scope = "col";
-      const matches = filteredAssets(assets, assignments, tab, sub, query);
+      const matches = filteredAssets(assets, assignments, tab, sub, query, t);
       count.textContent = matches.length + " matching assets. Showing up to 200; narrow search for more.";
       for (const a of matches.slice(0, 200)) {
         const tr = el("tr", void 0, body);

@@ -2,7 +2,7 @@
   "manifest_version": 1,
   "name": "asset-categories",
   "displayName": "Asset Sublists",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "User-created asset sublists, selected columns and assignments managed from the Asset sublists page.",
   "author": "Instance administrator",
   "license": "MIT",

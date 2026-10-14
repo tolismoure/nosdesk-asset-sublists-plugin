@@ -78,6 +78,7 @@ jobs:
           python3 frontend-extension/apply.py upstream
           python3 asset-history/apply.py upstream --check
           python3 asset-history/apply.py upstream
+      - run: cp tests/frontend/AssetSublistAssignment.spec.ts upstream/frontend/src/components/assets/__tests__/AssetSublistAssignment.spec.ts
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
         working-directory: upstream
@@ -85,5 +86,5 @@ jobs:
         working-directory: upstream
       - run: pnpm --filter nosdesk-frontend build-only
         working-directory: upstream
-      - run: pnpm --filter nosdesk-frontend exec vitest run src/plugins/assetHistoryApi.spec.ts src/plugins/assetHistoryService.spec.ts src/plugins/assetHistorySandbox.spec.ts
+      - run: pnpm --filter nosdesk-frontend exec vitest run src/plugins/assetHistoryApi.spec.ts src/plugins/assetHistoryService.spec.ts src/plugins/assetHistorySandbox.spec.ts src/components/assets/__tests__/AssetSublistAssignment.spec.ts
         working-directory: upstream

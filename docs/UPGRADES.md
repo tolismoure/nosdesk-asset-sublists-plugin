@@ -28,7 +28,7 @@ The display updater stores the original source page, history override and exact 
 
 An explicit manual rollback should use the recorded configuration and image from the intended run, with all Compose overrides. Do not use an unqualified docker compose up that silently selects another image or drops the PostgreSQL 18 override.
 
-Plugin 2.0.1 and the prior sidebar share storage contracts. Rolling the frontend back does not require deleting category storage. The plugin can remain on 2.0.1 (standalone assignments) unless you deliberately want the old individual-asset panel back.
+Plugin 2.1.0 and the prior sidebar share storage contracts. Rolling the frontend back does not require deleting category storage. The plugin can remain on 2.1.0 (standalone assignments) while the host frontend supplies the right-hand assignment card.
 
 ## Migration removal
 

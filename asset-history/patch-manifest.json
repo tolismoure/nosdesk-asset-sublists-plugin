@@ -1,0 +1,22 @@
+{
+  "backend/migrations/2026-10-13-000000_asset_history/down.sql": null,
+  "backend/migrations/2026-10-13-000000_asset_history/up.sql": null,
+  "backend/src/handlers/asset_history.rs": null,
+  "backend/src/handlers/asset_history_query.sql": null,
+  "backend/src/handlers/mod.rs": "027b315d91657998d9607c12ebdd11671c1f6c1b636e9086bd4057dfa5d1610d",
+  "backend/src/handlers/plugins.rs": "b7194abd40b5f3bc69274f4d5752942c0176a1fb0745b28d52189944ec6bd422",
+  "backend/src/services/plugins/types.rs": "6e6d727d6c066c93139455a8376567dc6aac80345cb9d8fe0e36924bdc8337f7",
+  "frontend/src/plugins/api.ts": "eff68ec394a5247b5ae8339566e37a0e3b4cd73713b5cf58cda0da5b81992339",
+  "frontend/src/plugins/assetHistoryApi.spec.ts": null,
+  "frontend/src/plugins/assetHistoryApi.ts": null,
+  "frontend/src/plugins/assetHistorySandbox.spec.ts": null,
+  "frontend/src/plugins/assetHistoryService.spec.ts": null,
+  "frontend/src/plugins/sandboxHostApi.ts": "186de0a3c263ce9928f9894929a5276d24e192ce62f535eaf2af1344910e2e85",
+  "i18n/locales/en-AU/main.ftl": "27aa2c5022b13f7edb4a229adc5b5e535afdda13a37f6b3ec16d707ad1b82cf7",
+  "i18n/locales/en-GB/main.ftl": "a69a2dada63a867964f7c8e68ae6911641c73391420eb24a00bbf65c005c2ad8",
+  "i18n/locales/en-US/main.ftl": "44b8c30112ff3ab5e0513bbcf30fdefd96ef294f3ab4811e4b6054a87ff88875",
+  "packages/core/src/services/pluginService.ts": "52bf23898f61ccff6bcf1c5aa9a51dc0d3a6325ab43172aad7ad1dfb3dd6a857",
+  "packages/core/src/types/plugin.ts": "52faf2460c8b568eca4138a23779a3cfc31f9ec9b693cf34e75feead583d2216",
+  "packages/plugin-sdk/src/index.ts": "c232d55a9172afec7b96e5478cfb8e9175937693d319711563baa4c5f0591792",
+  "packages/plugin-sdk/src/types.ts": "0c5a6ed64616c295dec543de94f7ff04d9bba575b9d146ff1f9d1692bd9f0144"
+}

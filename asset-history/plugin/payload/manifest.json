@@ -1,0 +1,19 @@
+{
+  "manifest_version": 1,
+  "name": "asset-history",
+  "displayName": "Asset History",
+  "version": "1.0.0",
+  "description": "Read-only historical asset changes, including audited sublist assignments and optional shared category configuration changes. Requires the accompanying Asset History host extension.",
+  "author": "Instance administrator",
+  "license": "MIT",
+  "engines": {"nosdesk": "=1.1.0", "plugin_api": "1"},
+  "permissions": ["asset:read", "asset:history:read"],
+  "components": {
+    "AssetHistory": {"kind": "slot", "slot": "asset.info.panel", "entry": "bundle.js", "context": ["asset"], "label": "Asset history"},
+    "HistoryBrowser": {"kind": "slot", "slot": "nav.item", "entry": "bundle.js", "label": "Asset history", "action": {"label": "Asset history"}}
+  },
+  "events": [],
+  "settings": [],
+  "categories": ["ui", "productivity"],
+  "lifecycle": {"on_uninstall": "preserve"}
+}

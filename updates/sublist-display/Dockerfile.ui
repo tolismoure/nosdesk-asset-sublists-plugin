@@ -1,0 +1,45 @@
+ARG NOSDESK_BASE_IMAGE
+FROM node:24-bookworm-slim AS frontend-builder
+RUN corepack enable
+
+WORKDIR /repo
+
+# Workspace manifests + lockfile first, for a cached dependency layer. The
+# frontend imports the @nosdesk/core (and, via a lazy chunk, @nosdesk/mobile)
+# workspace packages, so their manifests must be present for the workspace-aware
+# `--filter ...` install to resolve them.
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY frontend/package.json ./frontend/
+COPY packages/core/package.json ./packages/core/
+COPY packages/plugin-sdk/package.json ./packages/plugin-sdk/
+COPY mobile/package.json ./mobile/
+RUN pnpm install --frozen-lockfile --filter nosdesk-frontend...
+
+# Frontend source + the workspace package sources it resolves from (raw .ts,
+# consumed directly by vite). mobile/src only — mobile/src-tauri is the native
+# shell and irrelevant to the web build.
+COPY frontend ./frontend
+COPY packages/core ./packages/core
+COPY packages/plugin-sdk ./packages/plugin-sdk
+COPY mobile/src ./mobile/src
+# Shared Fluent catalogues. Vite's `import.meta.glob` in
+# src/i18n/index.ts resolves `../../../i18n/locales/...` three levels up
+# from /repo/frontend/src/i18n/, which lands at /repo, so the catalogues
+# live at /repo/i18n.
+COPY i18n ./i18n
+
+# Build_sha stamped into the bundle so bug reports can identify
+# which deployment a client was running. Passed in by the operator's
+# build pipeline via `--build-arg VITE_BUILD_SHA=$(git rev-parse --short HEAD)`.
+# Defaults to "unknown" if unset so the build never fails on a
+# missing arg. Placed after the install + source COPY so changing the
+# SHA does not invalidate the dependency layer cache.
+ARG VITE_BUILD_SHA=unknown
+ENV VITE_BUILD_SHA=$VITE_BUILD_SHA
+
+# Build frontend for production (type-checking handled in CI).
+RUN pnpm --filter nosdesk-frontend run build-only
+
+
+FROM ${NOSDESK_BASE_IMAGE}
+COPY --from=frontend-builder --chown=1001:1001 /repo/frontend/dist /app/public

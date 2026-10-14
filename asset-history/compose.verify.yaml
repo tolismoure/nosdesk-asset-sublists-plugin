@@ -1,0 +1,29 @@
+services:
+  history-db:
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_USER: nosdesk
+      POSTGRES_PASSWORD: history-test-only
+      POSTGRES_DB: nosdesk_test
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U nosdesk -d nosdesk_test']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  history-tests:
+    image: nosdesk-history-tests:1.1.0
+    build:
+      context: ${HISTORY_SOURCE_DIR:?Set HISTORY_SOURCE_DIR}
+      dockerfile: ${HISTORY_PACKAGE_DIR:?Set HISTORY_PACKAGE_DIR}/Dockerfile.history
+      target: history-tests
+      args:
+        NOSDESK_VERSION: 1.1.0
+    depends_on:
+      history-db:
+        condition: service_healthy
+    environment:
+      TEST_DATABASE_URL: postgres://nosdesk:history-test-only@history-db:5432/nosdesk_test
+      JWT_SECRET: isolated-history-test-secret-only
+    command: [cargo, test, --release, --lib, 'handlers::asset_history::tests', --, '--test-threads=1']

@@ -1,0 +1,981 @@
+// Reexport handlers
+pub mod admin_license;
+pub mod admin_workspaces;
+pub mod analytics;
+pub mod api_tokens;
+pub mod app_config;
+pub mod approval_settings;
+pub mod approvals;
+pub mod asset_audits;
+pub mod asset_groups;
+pub mod asset_kinds;
+pub mod asset_lifecycle;
+pub mod asset_loans;
+pub mod asset_media;
+pub mod asset_models;
+pub mod asset_usage;
+pub mod assets;
+pub mod assignment_rules;
+pub mod audit;
+pub mod audit_log;
+pub mod asset_history;
+pub mod auth;
+pub mod auth_providers;
+pub mod backup;
+pub mod branding;
+pub mod bug_reports;
+pub mod canned_responses;
+pub mod categories;
+pub mod channels;
+pub mod client_errors;
+pub mod collab_images;
+pub mod collaboration;
+pub mod csp_reports;
+pub mod cycles;
+pub mod dashboard;
+pub mod debug;
+pub mod documentation;
+pub mod documentation_collections;
+pub mod email;
+pub mod email_queue;
+pub mod email_stop;
+pub mod email_suppressions;
+pub mod email_verification;
+pub mod feature_flags;
+pub mod files;
+pub mod groups;
+pub mod guest;
+pub mod guest_settings;
+pub mod health;
+pub mod helpers;
+pub mod image_proxy;
+pub mod imports;
+pub mod inbound_dead_letters;
+pub mod inbound_email;
+pub mod internal_workspaces;
+pub mod invitation;
+pub mod knowledge_gaps;
+pub mod ldap_integration;
+pub mod manufacturers;
+pub mod microsoft_graph;
+pub mod msgraph_integration;
+pub mod notices;
+pub mod notifications;
+pub mod passkeys;
+pub mod password_reset;
+pub mod plugin_collections;
+pub mod plugin_events;
+pub mod plugin_sandbox;
+pub mod plugins;
+pub mod portal;
+pub mod portal_events;
+pub mod portal_sso;
+pub mod projects;
+pub mod requester_sso;
+pub mod rules;
+pub mod saved_views;
+pub mod scheduler;
+pub mod search;
+pub mod sla;
+pub mod sse;
+pub mod sync;
+pub mod system;
+pub mod tags;
+pub mod teams;
+pub mod ticket_merge;
+pub mod ticket_watchers;
+pub mod tickets;
+pub mod unsubscribe;
+pub mod user_contact;
+pub mod users;
+pub mod webhooks;
+pub mod well_known;
+pub mod widget;
+pub mod workflow_states;
+pub mod workspace_data_export;
+pub mod workspace_email;
+pub mod workspace_export;
+pub mod workspace_members;
+
+// Import all handlers from modules
+#[allow(ambiguous_glob_reexports)] // `config` accessed via full path (see projects)
+pub use auth::*;
+// Export specific items from users to avoid conflicts
+#[allow(ambiguous_glob_reexports)] // `config` accessed via full path (see projects)
+pub use files::*;
+pub use users::{
+    add_user_email, admin_delete_user_passkey, admin_disable_user_mfa, admin_reset_user_password,
+    bulk_users, cleanup_stale_images, create_user, delete_user, delete_user_auth_identity,
+    delete_user_auth_identity_by_uuid, delete_user_email, get_paginated_users,
+    get_user_auth_identities, get_user_auth_identities_by_uuid, get_user_by_uuid, get_user_emails,
+    get_user_security_info, get_user_with_emails, get_users, get_users_batch, purge_user_now,
+    regenerate_avatar_thumbnails, resend_invitation, resend_user_email_verification, restore_user,
+    update_user_by_uuid, update_user_email, upload_user_image,
+};
+// Export specific items from tickets to avoid conflicts
+// `config` is intentionally per-module and always referenced via its full path
+// (`handlers::projects::config`); the glob's ambiguous `handlers::config` is unused.
+#[allow(ambiguous_glob_reexports)]
+pub use projects::*;
+pub use tickets::{
+    add_device_to_ticket, bulk_tickets, create_empty_ticket, create_ticket, delete_ticket,
+    get_paginated_tickets, get_recent_tickets, get_ticket, get_ticket_activity, get_tickets,
+    import_tickets_from_json_string, link_tickets, preview_ticket_field, record_ticket_view,
+    remove_device_from_ticket, remove_recent_ticket, unlink_tickets, update_ticket,
+    update_ticket_partial,
+};
+// Export specific items from devices to avoid conflicts
+pub use assets::{
+    bulk_devices, clear_asset_model, create_device, create_empty_device, delete_device,
+    export_assets, get_all_devices, get_asset_locations, get_device_by_id, get_paginated_devices,
+    get_paginated_devices_excluding, get_user_devices, set_asset_model, unmanage_device,
+    update_device,
+};
+#[allow(ambiguous_glob_reexports)] // `config` accessed via full path (see projects)
+pub use auth_providers::*;
+#[allow(ambiguous_glob_reexports)] // `config` accessed via full path; see projects above
+pub use documentation::*;
+#[allow(ambiguous_glob_reexports)] // `config` accessed via full path (see projects)
+pub use microsoft_graph::*;
+pub use msgraph_integration::{
+    cancel_sync_session, get_active_syncs, get_config_validation, get_connection_status,
+    get_entra_object_id, get_last_sync, get_sync_progress_endpoint, sync_data, test_connection,
+};
+pub use passkeys::{
+    delete_passkey, finish_passkey_login, finish_passkey_registration, finish_passkey_setup_login,
+    list_passkeys, rename_passkey, start_passkey_login, start_passkey_registration,
+    start_passkey_setup_login,
+};
+
+// Import necessary types for placeholders
+use actix_web::{http::StatusCode, web, HttpMessage, HttpResponse, Responder};
+use serde_json::json;
+
+use crate::errors;
+use crate::middleware::request_context::record_canonical;
+use crate::utils::error_response::json_error;
+use crate::utils::locale::request_locale;
+use std::sync::Arc;
+use tracing::{debug, error, info, warn};
+
+use crate::services::search::SearchService;
+
+// Placeholders for handlers that haven't been implemented in dedicated modules yet
+
+// Ticket comments and attachments
+pub async fn get_comments_by_ticket_id(
+    access: crate::extractors::TicketAccess,
+    mut tc: crate::extractors::TenantConn,
+) -> impl Responder {
+    let ticket_id = access.ticket_id;
+    debug!(ticket_id, "Getting comments for ticket");
+
+    // TicketAccess proves the caller may see the ticket. It says nothing about
+    // internal notes on it, so the audience is resolved separately here.
+    let audience = crate::repository::ticket_visibility::CommentAudience::from_auth(&access.auth);
+
+    match tc.run(|conn| {
+        crate::repository::comments::get_comments_with_attachments_by_ticket_id(
+            conn, ticket_id, audience,
+        )
+    }) {
+        Ok(comments) => {
+            // Serialize through serde so every field on
+            // `CommentWithAttachments` (including `content_format`,
+            // `is_internal`, `channel_metadata`, `from_address`) reaches
+            // the frontend automatically — the manual JSON construction
+            // we used to do here was silently dropping those fields and
+            // creating drift between this endpoint and the embedded
+            // comments inside `CompleteTicket`. The only enrichment we
+            // still do at the boundary is the camelCase `createdAt`
+            // alias the UI relies on.
+            let formatted_comments: Vec<serde_json::Value> = comments
+                .into_iter()
+                .map(|c| {
+                    let created_at = c
+                        .comment
+                        .created_at
+                        .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+                        .to_string();
+                    let mut value = serde_json::to_value(&c).unwrap_or_default();
+                    if let serde_json::Value::Object(ref mut map) = value {
+                        // Re-stamp ISO timestamps in the format the UI
+                        // expects (Diesel's default goes through chrono
+                        // and varies between drivers).
+                        map.insert(
+                            "created_at".to_string(),
+                            serde_json::Value::String(created_at.clone()),
+                        );
+                        map.insert(
+                            "createdAt".to_string(),
+                            serde_json::Value::String(created_at),
+                        );
+                    }
+                    value
+                })
+                .collect();
+
+            debug!(
+                ticket_id,
+                comment_count = formatted_comments.len(),
+                "Successfully retrieved comments"
+            );
+            HttpResponse::Ok().json(formatted_comments)
+        }
+        Err(e) => {
+            error!(ticket_id, error = %e, "Error retrieving comments");
+            errors::internal(format!("Failed to retrieve comments: {}", e))
+        }
+    }
+}
+
+/// How long an agent upload stays claimable by a comment: as long as the temp
+/// cleanup keeps it.
+const UPLOAD_CLAIM_HOURS: i64 = 24;
+
+pub async fn add_comment_to_ticket(
+    access: crate::extractors::TicketAccess,
+    comment_data: web::Json<crate::models::NewCommentWithAttachments>,
+    pool: web::Data<crate::db::Pool>,
+    mut tc: crate::extractors::TenantConn,
+    storage: crate::extractors::ScopedStorage,
+    search_service: web::Data<Arc<SearchService>>,
+    outbound_resolver: web::Data<Arc<crate::services::outbound_email::OutboundEmailResolver>>,
+    req: actix_web::HttpRequest,
+) -> impl Responder {
+    let ticket_id = access.ticket_id;
+    let user_uuid_parsed = access.auth.user_uuid;
+
+    // Internal notes are staff-to-staff. A requester can reach this handler for
+    // their own ticket, so the toggle alone must not let them write one.
+    if comment_data.is_internal && !access.auth.can_handle_tickets() {
+        return json_error(
+            &request_locale(&req),
+            "backend-error-internal-note-forbidden",
+            StatusCode::FORBIDDEN,
+        );
+    }
+    // A merged ticket's conversation continues on the one it was merged into.
+    if let Some(refused) = crate::handlers::helpers::refuse_merged(&mut tc, &[ticket_id]) {
+        return refused;
+    }
+
+    debug!(ticket_id, "Adding comment to ticket");
+    debug!(content = %comment_data.content, "Comment content");
+    debug!(
+        attachments_count = comment_data.attachments.len(),
+        "Attachments count"
+    );
+
+    // Still need the raw `Claims` for actor logging on the
+    // notification path; the extractor's `auth.claims` carries
+    // them but is private. Pull from request extensions, where
+    // the JWT middleware deposited them; the extractor's success
+    // guarantees this is present.
+    let claims = match req.extensions().get::<crate::models::Claims>() {
+        Some(claims) => claims.clone(),
+        None => {
+            return json_error(
+                &request_locale(&req),
+                "backend-error-auth-required",
+                StatusCode::UNAUTHORIZED,
+            )
+        }
+    };
+
+    // Get the authenticated user's full information for notifications
+    let commenter_user = match tc
+        .run(|conn| crate::repository::users::get_user_by_uuid(&user_uuid_parsed, conn))
+    {
+        Ok(user) => {
+            debug!(user_name = %user.name, user_uuid = %user.uuid, "Authenticated user");
+            user
+        }
+        Err(e) => {
+            error!(user_uuid = %claims.sub, error = ?e, "Authenticated user UUID not found in database");
+            return json_error(
+                &request_locale(&req),
+                "backend-error-user-not-found",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            );
+        }
+    };
+
+    // Extract user info for the response
+    let user_info = Some(crate::models::UserInfoWithAvatar {
+        uuid: commenter_user.uuid,
+        name: commenter_user.name.clone(),
+        avatar_url: commenter_user.avatar_url.clone(),
+        avatar_thumb: commenter_user.avatar_thumb.clone(),
+    });
+
+    // Get ticket info for notifications
+    let ticket = tc
+        .run(|conn| {
+            crate::repository::get_ticket_by_id(conn, ticket_id)
+                .map(Some)
+                .or_else(|_| Ok::<_, diesel::result::Error>(None))
+        })
+        .ok()
+        .flatten();
+
+    // Create the new comment using the authenticated user's UUID
+    let new_comment = crate::models::NewComment {
+        content: comment_data.content.clone(),
+        user_uuid: user_uuid_parsed, // Use the user_uuid from JWT token
+        ticket_id,
+        // Editor-driven flow today produces HTML. Older clients that
+        // don't send the field rely on the `Default` impl on
+        // `ContentFormat`, which is also HTML, so the wire shape is
+        // backward-compatible.
+        content_format: comment_data.content_format,
+        // A UI-authored comment is the editor's own semantic-inline
+        // HTML: it renders inline (like an agent's reply), never in the
+        // sandboxed email iframe reserved for rich inbound mail. Stamp
+        // the tier explicitly here so the renderer never has to guess
+        // it from `content_format` (which would wrongly pick the
+        // legacy-html iframe path). The repository's create choke
+        // point also stamps this for any html caller that forgets;
+        // the inbound email pipeline sets its own classified tier.
+        render_kind: Some("simple".to_string()),
+        // Honor the composer's internal-note toggle. Was dropped before
+        // (defaulted to false), which saved every note as public.
+        is_internal: comment_data.is_internal,
+        // A resend of this reply is answered with it (below).
+        client_id: comment_data.client_id,
+        // Email body parts only apply to inbound channel comments,
+        // not UI-authored ones.
+        ..Default::default()
+    };
+
+    // A resend of a reply already saved (the composer keeps a failed reply's
+    // client id until its draft is edited) gets that reply back: no second
+    // comment, and nothing is attached, watched or relayed again.
+    if let Some(client_id) = comment_data.client_id {
+        match tc.run(|conn| {
+            crate::repository::comments::find_by_client_id(
+                conn,
+                ticket_id,
+                user_uuid_parsed,
+                client_id,
+            )
+        }) {
+            Ok(Some(existing)) => return resent_reply(&mut tc, existing, user_info),
+            Ok(None) => {}
+            Err(e) => {
+                error!(error = %e, "Error looking up a resent reply");
+                return errors::internal("Failed to create comment");
+            }
+        }
+    }
+
+    // Stamp the client-minted id (if any) so the comment.created sync action
+    // carries it as `correlation_id`, letting the client reconcile its
+    // optimistic row structurally rather than by a temp-id swap + heuristic
+    // dedup. Applies to this comment's write and its attachment writes below
+    // (one logical mutation).
+    if let Some(cid) = comment_data.client_id {
+        tc.set_correlation_id(cid);
+    }
+
+    // Insert the comment, attributed to the authenticated user.
+    // TenantConn primes the actor and workspace GUCs around the
+    // repo's own transaction, so observers and RLS both see the
+    // request context.
+    let create_result = tc.run(|conn| {
+        crate::repository::comments::create_comment(
+            conn,
+            new_comment,
+            Some(search_service.get_ref()),
+        )
+    });
+    // The same reply arriving twice at once: the other request saved it.
+    if let (
+        Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UniqueViolation,
+            _,
+        )),
+        Some(client_id),
+    ) = (&create_result, comment_data.client_id)
+    {
+        if let Ok(Some(existing)) = tc.run(|conn| {
+            crate::repository::comments::find_by_client_id(
+                conn,
+                ticket_id,
+                user_uuid_parsed,
+                client_id,
+            )
+        }) {
+            return resent_reply(&mut tc, existing, user_info);
+        }
+    }
+    match create_result {
+        Ok(comment) => {
+            debug!(comment_id = comment.id, "Created comment");
+            record_canonical(&req, "ticket_id", ticket_id);
+            record_canonical(&req, "comment_id", comment.id);
+            record_canonical(&req, "outcome", "comment_added");
+
+            // Auto-watch on first comment. Industry default
+            // (GitHub, Linear) — once a user engages with a
+            // ticket they probably want to hear about replies.
+            // `auto_added: true` distinguishes this implicit
+            // watch from an explicit bell-toggle so a future
+            // "stop auto-watching" preference can drop only the
+            // implicit ones. Errors here are non-fatal: a failed
+            // watch insert shouldn't fail the comment write.
+            if let Err(e) = tc.run(|conn| {
+                crate::repository::ticket_watchers::add_watcher(
+                    conn,
+                    ticket_id,
+                    user_uuid_parsed,
+                    true,
+                )
+            }) {
+                debug!(error = %e, "auto-watch on comment failed (non-fatal)");
+            }
+
+            // Attach the caller's own staged uploads, as the portal does: an id
+            // that isn't theirs, is already attached or has expired is skipped
+            // and logged, and a failed move attaches nothing.
+            let mut attachments = Vec::new();
+            let mut attachment_errors = Vec::new();
+            let requested: Vec<i32> = comment_data
+                .attachments
+                .iter()
+                .filter_map(|a| a.id)
+                .collect();
+            let since =
+                chrono::Utc::now().naive_utc() - chrono::Duration::hours(UPLOAD_CLAIM_HOURS);
+            let mut claimable: std::collections::HashMap<i32, crate::models::Attachment> =
+                if requested.is_empty() {
+                    std::collections::HashMap::new()
+                } else {
+                    match tc.run(|conn| {
+                        crate::repository::comments::claimable_uploads(
+                            conn,
+                            &requested,
+                            user_uuid_parsed,
+                            since,
+                        )
+                    }) {
+                        Ok(rows) => rows.into_iter().map(|a| (a.id, a)).collect(),
+                        Err(e) => {
+                            error!(error = %e, "Error loading uploads to attach");
+                            attachment_errors.push("Failed to load uploads to attach".to_string());
+                            std::collections::HashMap::new()
+                        }
+                    }
+                };
+
+            for id in requested {
+                let Some(mut attachment) = claimable.remove(&id) else {
+                    attachment_errors.push(format!(
+                        "Attachment {id} is not an upload of yours waiting to be attached"
+                    ));
+                    continue;
+                };
+
+                let file_path = attachment
+                    .url
+                    .trim_start_matches("/uploads/temp/")
+                    .to_string();
+                let old_storage_path = format!("temp/{file_path}");
+                let new_storage_path = format!("tickets/{ticket_id}/{file_path}");
+                if let Err(e) = storage
+                    .0
+                    .move_file(&old_storage_path, &new_storage_path)
+                    .await
+                {
+                    error!(error = ?e, file = %attachment.name, "Error moving attachment out of temp storage");
+                    attachment_errors.push(format!("Failed to move file {}", attachment.name));
+                    continue;
+                }
+
+                // Also move PDF thumbnail if it exists
+                if attachment.mime_type.as_deref() == Some("application/pdf") {
+                    if let (Some(old_thumb), Some(new_thumb)) = (
+                        crate::utils::pdf::thumbnail_path(&old_storage_path),
+                        crate::utils::pdf::thumbnail_path(&new_storage_path),
+                    ) {
+                        if let Err(e) = storage.0.move_file(&old_thumb, &new_thumb).await {
+                            debug!(error = ?e, "PDF thumbnail not found or couldn't be moved (this is OK if no thumbnail was generated)");
+                        }
+                    }
+                }
+
+                let url = format!("/uploads/tickets/{ticket_id}/{file_path}");
+                match tc.run(|conn| {
+                    crate::repository::comments::reparent_attachment(
+                        conn,
+                        attachment.id,
+                        &url,
+                        comment.id,
+                        user_uuid_parsed,
+                    )
+                }) {
+                    Ok(_) => {
+                        attachment.url = url;
+                        attachment.comment_id = Some(comment.id);
+                        attachments.push(attachment);
+                    }
+                    Err(e) => {
+                        error!(error = %e, attachment_name = %attachment.name, "Error attaching upload");
+                        attachment_errors.push(format!("Failed to attach {}", attachment.name));
+                    }
+                }
+            }
+
+            // Log any attachment processing errors
+            if !attachment_errors.is_empty() {
+                warn!(errors = ?attachment_errors, "Some attachments had processing errors");
+            }
+
+            // Get user info
+            let user = user_info;
+
+            let response = reply_body(&comment, &attachments, user);
+
+            // The comment + the ticket's modified-date bump both reach
+            // clients through the sync pool (the repository write emits
+            // comment.created + the ticket activity bump). No discrete
+            // SSE broadcast.
+
+            // Relay the comment back through the originating channel
+            // (email today, chat once those adapters exist). Item J
+            // Pass 1: enqueue on the durable outbound_emails queue;
+            // the worker (services::email_queue::worker) handles SMTP
+            // dispatch with retry, idempotency, and crash recovery.
+            //
+            // Skipped when no outbound identity is configured at all (no env
+            // fallback). The worker resolves the per-workspace identity at
+            // send time and defers a row it can't resolve, so this gate only
+            // avoids queueing in a deployment with no baseline SMTP.
+            if let Some(ticket_info) = ticket.as_ref() {
+                if outbound_resolver.has_fallback() {
+                    crate::services::channels::outbound::enqueue_for_comment(
+                        ticket_info.clone(),
+                        comment.clone(),
+                        pool.get_ref().clone(),
+                    );
+                }
+            }
+
+            // Search index update is fired by the CommentCreatedObserver
+            // inside `create_comment`, so no manual spawn needed.
+
+            // Participant and mention notifications derive from the
+            // comment.created sync action (services/notifications/deriver.rs).
+
+            info!(
+                ticket_id,
+                attachments_count = attachments.len(),
+                "Successfully created comment"
+            );
+            debug!(response = %response, "Returning JSON response");
+            HttpResponse::Created().json(response)
+        }
+        Err(e) => {
+            error!(error = %e, "Error creating comment");
+            errors::internal(format!("Failed to create comment: {}", e))
+        }
+    }
+}
+
+/// What a reply's POST answers with, in the shape TicketView.vue expects.
+fn reply_body(
+    comment: &crate::models::Comment,
+    attachments: &[crate::models::Attachment],
+    user: Option<crate::models::UserInfoWithAvatar>,
+) -> serde_json::Value {
+    // Format the ISO timestamp correctly for JavaScript
+    let created_at = comment
+        .created_at
+        .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+        .to_string();
+    json!({
+        "id": comment.id,
+        "content": comment.content,
+        "user_uuid": comment.user_uuid.to_string(),
+        "created_at": created_at,
+        "createdAt": created_at,
+        "ticket_id": comment.ticket_id,
+        // As saved: a resend answered with an earlier reply carries that
+        // reply's flag, whatever the composer's toggle says now.
+        "is_internal": comment.is_internal,
+        // Render-determining fields, so the value the client upserts into
+        // the pool from this response renders identically to the same row
+        // rehydrated on refresh (GET /comments serializes the full row).
+        // Omitting them is what made a fresh comment flip from inline text
+        // to an email iframe across a reload.
+        "content_format": comment.content_format,
+        "render_kind": comment.render_kind,
+        "attachments": attachments,
+        "user": user
+    })
+}
+
+/// A resend's answer: the reply already saved, with its files.
+fn resent_reply(
+    tc: &mut crate::extractors::TenantConn,
+    comment: crate::models::Comment,
+    user: Option<crate::models::UserInfoWithAvatar>,
+) -> HttpResponse {
+    match tc
+        .run(|conn| crate::repository::comments::get_attachments_by_comment_id(conn, comment.id))
+    {
+        Ok(attachments) => {
+            debug!(comment_id = comment.id, "Answered a resent reply");
+            HttpResponse::Ok().json(reply_body(&comment, &attachments, user))
+        }
+        Err(e) => {
+            error!(error = %e, "Error loading a resent reply's files");
+            errors::internal("Failed to create comment")
+        }
+    }
+}
+
+pub async fn delete_comment(
+    req: actix_web::HttpRequest,
+    auth: crate::extractors::AuthContext,
+    path: web::Path<i32>,
+    mut tc: crate::extractors::TenantConn,
+    search_service: web::Data<Arc<SearchService>>,
+) -> impl Responder {
+    let comment_id = path.into_inner();
+    debug!(comment_id, "Deleting comment");
+
+    // Existence guard so a missing comment returns a localized 404
+    // before we attempt the delete.
+    let comment =
+        match tc.run(|conn| crate::repository::comments::get_comment_by_id(conn, comment_id)) {
+            Ok(c) => c,
+            Err(_) => {
+                return json_error(
+                    &request_locale(&req),
+                    "backend-error-comment-not-found",
+                    StatusCode::NOT_FOUND,
+                )
+            }
+        };
+
+    // Visibility first, then authority. RLS bounds this to the workspace, but
+    // not to tickets the caller can read: without this, any member of any role
+    // could delete any comment in the workspace by iterating ids, including
+    // internal notes on tickets they cannot see. Mirrors `get_comment_raw_eml`,
+    // which gates the same resource.
+    let vis = crate::repository::ticket_visibility::VisibilityContext::from_auth(&auth);
+    match tc.run(|conn| {
+        crate::repository::ticket_visibility::can_view_ticket(conn, &vis, comment.ticket_id)
+    }) {
+        Ok(true) => {}
+        // 404, not 403: an attacker iterating ids must not learn which comments
+        // exist on other people's tickets.
+        Ok(false) | Err(_) => {
+            return json_error(
+                &request_locale(&req),
+                "backend-error-comment-not-found",
+                StatusCode::NOT_FOUND,
+            )
+        }
+    }
+
+    // Authority to delete is narrower than authority to read: your own comment,
+    // or any comment if you handle tickets. A requester who can see a ticket
+    // must not be able to delete the agent's notes on it.
+    if comment.user_uuid != auth.user_uuid && !auth.can_handle_tickets() {
+        return errors::forbidden("Forbidden: you can only delete your own comments");
+    }
+
+    let delete_result = tc.run(|conn| {
+        crate::repository::comments::delete_comment(
+            conn,
+            comment_id,
+            Some(search_service.get_ref()),
+        )
+    });
+    match delete_result {
+        Ok(deleted) => {
+            if deleted > 0 {
+                // Search index removal is fired by the
+                // CommentDeletedObserver inside `delete_comment`. The
+                // deletion reaches clients via the sync pool (the
+                // repository write emits `comment.deleted`).
+
+                info!(comment_id, "Successfully deleted comment");
+                HttpResponse::Ok().json(json!({"success": true, "message": "Comment deleted"}))
+            } else {
+                warn!(comment_id, "Comment not found in database");
+                json_error(
+                    &request_locale(&req),
+                    "backend-error-comment-not-found",
+                    StatusCode::NOT_FOUND,
+                )
+            }
+        }
+        Err(e) => {
+            error!(comment_id, error = %e, "Error deleting comment");
+            errors::internal(format!("Failed to delete comment: {}", e))
+        }
+    }
+}
+
+/// Serve the raw RFC-822 source for an email-derived comment as
+/// `text/plain` so agents can fall back to the unparsed message
+/// when the quote splitter misfires or they need to inspect
+/// headers. 404 on comments that have no archived source (UI-
+/// authored, chat-relayed, or pre-archive history).
+///
+/// Visibility is the comment's own (`repository::file_access`):
+/// internal only for staff, on a ticket the caller can see. The link
+/// opens in a new tab without the workspace selection header, so the
+/// workspace comes from the comment (see `authorize_at_owning_workspace`). Deny maps to 404
+/// (not 403) per the AUD-001 IDOR pattern so the response shape
+/// can't be used to enumerate comment ids that the caller doesn't
+/// own.
+///
+/// The body is streamed as `text/plain; charset=utf-8` rather
+/// than `message/rfc822` because the intent is human inspection
+/// in a browser tab; an `.eml`-typed response would trigger a
+/// download in some browsers, which is worse UX for "Show
+/// original message."
+pub async fn get_comment_raw_eml(
+    auth: crate::extractors::AuthContext,
+    path: web::Path<i32>,
+    pool: web::Data<crate::db::Pool>,
+    base_storage: web::Data<Arc<dyn crate::utils::storage::Storage>>,
+) -> impl Responder {
+    let comment_id = path.into_inner();
+
+    let authorized = crate::handlers::files::authorize_at_owning_workspace(
+        &pool,
+        &auth,
+        |c| crate::repository::comments::comment_workspace_id(c, comment_id),
+        |c, _, role| {
+            let vis = crate::handlers::files::viewer_in_workspace(&auth, role);
+            Ok(
+                crate::repository::file_access::comment_for_viewer(c, &vis, comment_id)?
+                    .map(|comment| comment.raw_source_uri),
+            )
+        },
+    );
+    let (workspace_id, raw_source_uri) = match authorized {
+        Ok(found) => found,
+        Err(e) => return HttpResponse::from_error(e),
+    };
+
+    let Some(storage_path) = raw_source_uri else {
+        // Comment exists and is visible, but has no archived
+        // source. UI-authored comments and pre-archive history
+        // land here. 404 is correct — there's no resource to
+        // serve under this URL.
+        return errors::not_found_msg("Not found");
+    };
+
+    let storage = crate::utils::storage::WorkspaceScopedStorage::arc(
+        base_storage.get_ref().clone(),
+        workspace_id,
+    );
+    match storage.get_file(&storage_path).await {
+        Ok(bytes) => HttpResponse::Ok()
+            .insert_header(("Content-Type", "text/plain; charset=utf-8"))
+            .insert_header((
+                "Content-Disposition",
+                format!("inline; filename=\"comment-{}.eml\"", comment_id),
+            ))
+            // Mailbox source is immutable once written. Cache it
+            // aggressively at the browser; the contents can never
+            // change because we never rewrite `.eml` files. 1 hour
+            // is conservative; the agent UI re-fetches on tab
+            // reload anyway.
+            .insert_header(("Cache-Control", "private, max-age=3600"))
+            .body(bytes),
+        Err(e) => {
+            warn!(comment_id, error = ?e, "raw .eml fetch failed; file may have been pruned");
+            errors::not_found_msg("Not found")
+        }
+    }
+}
+
+/// Whether `auth` may delete `attachment`.
+///
+/// Parented attachments inherit their comment's ticket: the caller must be able
+/// to see the ticket, and then be the uploader or handle tickets. Orphans (no
+/// comment yet, i.e. a temp upload not yet attached to anything) have no ticket
+/// to check visibility against, so they fall back to uploader-or-staff, which is
+/// coarser by necessity rather than by choice.
+fn can_delete_attachment(
+    tc: &mut crate::extractors::TenantConn,
+    auth: &crate::extractors::AuthContext,
+    attachment: &crate::models::Attachment,
+) -> bool {
+    let owns = attachment.uploaded_by == Some(auth.user_uuid);
+    let staff = auth.can_handle_tickets();
+
+    let Some(comment_id) = attachment.comment_id else {
+        return owns || staff;
+    };
+
+    let Ok(comment) =
+        tc.run(|conn| crate::repository::comments::get_comment_by_id(conn, comment_id))
+    else {
+        return false;
+    };
+
+    let vis = crate::repository::ticket_visibility::VisibilityContext::from_auth(auth);
+    let visible = matches!(
+        tc.run(|conn| {
+            crate::repository::ticket_visibility::can_view_ticket(conn, &vis, comment.ticket_id)
+        }),
+        Ok(true)
+    );
+
+    // Deleting someone else's attachment needs ticket-handling authority, not
+    // merely the ability to read the ticket it hangs off.
+    visible && (owns || staff)
+}
+
+pub async fn delete_attachment(
+    req: actix_web::HttpRequest,
+    auth: crate::extractors::AuthContext,
+    path: web::Path<i32>,
+    mut tc: crate::extractors::TenantConn,
+    storage: crate::extractors::ScopedStorage,
+) -> impl Responder {
+    let attachment_id = path.into_inner();
+    debug!(attachment_id, "Deleting attachment");
+
+    // First, get the attachment to find the file path
+    match tc.run(|conn| crate::repository::comments::get_attachment_by_id(conn, attachment_id)) {
+        Ok(attachment) => {
+            debug!(attachment = ?attachment, "Found attachment");
+
+            // Authorize before touching storage. This handler deletes the
+            // stored object BEFORE the row, so an ungated call is an
+            // irreversible destruction of a file the caller may never have been
+            // allowed to read. RLS bounds it to the workspace and nothing else.
+            if !can_delete_attachment(&mut tc, &auth, &attachment) {
+                // 404 on deny, matching the read paths: ids are sequential, so
+                // a 403 would confirm which attachments exist.
+                return json_error(
+                    &request_locale(&req),
+                    "backend-error-attachment-not-found",
+                    StatusCode::NOT_FOUND,
+                );
+            }
+
+            // Extract the storage path from the URL. The branch split
+            // previously logged different cases for temp vs ticket vs
+            // other; both have collapsed to the same trim and there
+            // is no remaining reason to fork.
+            let storage_path = attachment.url.trim_start_matches("/uploads/").to_string();
+
+            debug!(storage_path = %storage_path, "Attempting to delete file from storage");
+
+            // Delete the file using the storage abstraction
+            match storage.0.delete_file(&storage_path).await {
+                Ok(_) => {
+                    debug!(storage_path = %storage_path, "Successfully deleted file from storage")
+                }
+                Err(e) => {
+                    warn!(error = ?e, storage_path = %storage_path, "Failed to delete file from storage")
+                }
+            }
+
+            // Delete the database record. Actor attribution comes
+            // from the request's RequestContext via TenantConn —
+            // both the actor GUC and workspace GUC are set for the
+            // delete inside the same transaction.
+            let delete_result =
+                tc.run(|conn| crate::repository::comments::delete_attachment(conn, attachment_id));
+            match delete_result {
+                Ok(deleted) => {
+                    if deleted > 0 {
+                        info!(
+                            attachment_id,
+                            "Successfully deleted attachment from database"
+                        );
+                        HttpResponse::Ok()
+                            .json(json!({"success": true, "message": "Attachment deleted"}))
+                    } else {
+                        warn!(attachment_id, "Attachment not found in database");
+                        json_error(
+                            &request_locale(&req),
+                            "backend-error-attachment-not-found",
+                            StatusCode::NOT_FOUND,
+                        )
+                    }
+                }
+                Err(e) => {
+                    error!(attachment_id, error = %e, "Error deleting attachment from database");
+                    errors::internal(format!("Failed to delete attachment: {}", e))
+                }
+            }
+        }
+        Err(e) => {
+            error!(attachment_id, error = %e, "Error finding attachment");
+            json_error(
+                &request_locale(&req),
+                "backend-error-attachment-not-found",
+                StatusCode::NOT_FOUND,
+            )
+        }
+    }
+}
+
+// Secure public file serving - ONLY for user avatars, banners, and thumbs
+pub async fn serve_public_file(
+    filename: web::Path<String>,
+    req: actix_web::HttpRequest,
+    storage: web::Data<Arc<dyn crate::utils::storage::Storage>>,
+) -> impl Responder {
+    let filename = filename.into_inner();
+
+    // Determine the storage path based on the request URI
+    let uri = req.uri().to_string();
+    let storage_path = if uri.starts_with("/uploads/users/avatars/") {
+        format!("users/avatars/{filename}")
+    } else if uri.starts_with("/uploads/users/banners/") {
+        format!("users/banners/{filename}")
+    } else if uri.starts_with("/uploads/users/thumbs/") {
+        format!("users/thumbs/{filename}")
+    } else {
+        warn!(filename = %filename, "Security violation: Attempted to access non-avatar/banner/thumb file");
+        return errors::forbidden("Only avatar, banner and thumbnail files are served here");
+    };
+
+    // Serve the file using storage abstraction
+    match crate::utils::storage::serve_file_from_storage(
+        storage.as_ref().clone(),
+        &storage_path,
+        &req,
+        crate::utils::storage::Caching::Public,
+    )
+    .await
+    {
+        Ok(response) => response,
+        Err(e) => {
+            error!(storage_path = %storage_path, error = ?e, "Error serving public file");
+            errors::not_found_msg("Not found")
+        }
+    }
+}
+
+/// Deliberately reject any `/uploads/{path}` that wasn't matched by the
+/// explicit public-asset routes (avatars / banners / thumbs / branding).
+///
+/// This path used to serve **any** object straight from storage with no
+/// authentication, which let `/uploads/tickets/...`, `/uploads/temp/...`,
+/// and even `/uploads/email_raw/...` be read by anyone who had (or
+/// guessed) the URL, bypassing the token-validated `/api/files/*` routes
+/// entirely. Tenant files are now served only through those authenticated,
+/// workspace-scoped handlers; the frontend rewrites `/uploads/tickets|temp`
+/// to `/api/files/...` (see `fileService.ts`). Anything else hitting this
+/// catch-all is either a leaked legacy URL or probing, so it 404s.
+pub async fn reject_legacy_upload_path(path: web::Path<String>) -> impl Responder {
+    warn!(
+        path = %path.into_inner(),
+        "Rejected unauthenticated /uploads/ access; tenant files are served via /api/files"
+    );
+    errors::not_found_msg("Not found")
+}

@@ -1,3 +1,5 @@
+/** Bridge the custom sidebar to the installed, loaded asset-categories plugin.
+ * Plugin storage remains authoritative; this hook never edits native assets. */
 import {computed,ref,watch} from 'vue';
 import {getLoadedPlugins} from '@/plugins/loader';
 import pluginService from '@nosdesk/core/services/pluginService';

@@ -1,0 +1,9 @@
+{
+  "backend/src/handlers/asset_history.rs": [
+    "a395dde75c06ab63225cf00eb538465d874bf12dc5d60b3c1a9ca627c6bf1af0",
+    "cecb5a1d0b4e5e2602867d7e4f17294ec89c868a3ef9cc6598781cbf203f059b"
+  ],
+  "frontend/src/plugins/assetHistoryApi.ts": [
+    "69c79628e5ee5d15cab29c6067a5e89964c4a7aca0a5aa1f72399637b74b893f"
+  ]
+}

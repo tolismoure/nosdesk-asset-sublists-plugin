@@ -9,3 +9,13 @@ node_modules/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Generated releases and operator state never belong in a public source repository.
+dist/
+*.log
+state.json
+*.sk
+*.key
+# These SQL files are source and test fixtures, not database exports.
+!asset-history/core-extension/**/*.sql
+!asset-history/tests/fixtures/*.sql

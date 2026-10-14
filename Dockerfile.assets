@@ -1,3 +1,5 @@
+ARG NOSDESK_BASE_IMAGE=ghcr.io/nosdesk/nosdesk:1.1.0
+# Override the base explicitly when preserving a custom backend.
 FROM node:24-bookworm-slim AS frontend-builder
 RUN corepack enable
 
@@ -40,5 +42,5 @@ ENV VITE_BUILD_SHA=$VITE_BUILD_SHA
 RUN pnpm --filter nosdesk-frontend run build-only
 
 
-FROM ghcr.io/nosdesk/nosdesk:1.1.0
-COPY --from=frontend-builder /repo/frontend/dist /app/public
+FROM ${NOSDESK_BASE_IMAGE}
+COPY --from=frontend-builder --chown=1001:1001 /repo/frontend/dist /app/public

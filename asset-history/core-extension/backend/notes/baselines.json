@@ -1,0 +1,9 @@
+{
+  "release": "v1.1.0",
+  "commit": "b4d3f2162972ba6e420ea10d16ca0fdcafeb8ac2",
+  "replacements": {
+    "backend/src/handlers/mod.rs": "027b315d91657998d9607c12ebdd11671c1f6c1b636e9086bd4057dfa5d1610d",
+    "backend/src/handlers/plugins.rs": "b7194abd40b5f3bc69274f4d5752942c0176a1fb0745b28d52189944ec6bd422",
+    "backend/src/services/plugins/types.rs": "6e6d727d6c066c93139455a8376567dc6aac80345cb9d8fe0e36924bdc8337f7"
+  }
+}

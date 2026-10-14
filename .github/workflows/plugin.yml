@@ -1,19 +1,89 @@
-name: Plugin checks
+name: Plugin and source checks
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
-  test:
+  plugins:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        directory: [plugin, asset-history/plugin]
     defaults:
       run:
-        working-directory: plugin
+        working-directory: ${{ matrix.directory }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: plugin/package-lock.json
+          cache-dependency-path: ${{ matrix.directory }}/package-lock.json
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - run: git diff --exit-code -- payload/bundle.js
+      - name: Generated bundle is reproducible
+        run: git diff --exit-code -- payload/bundle.js
+  python-and-sql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: asset-history/tests/sql/package-lock.json
+      - run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - run: python3 -m unittest discover -s asset-history/tests -p 'test_install*.py'
+      - name: Installer shell syntax
+        run: |
+          bash -n scripts/install-sublists.sh
+          bash -n updates/sublist-display/install.sh
+          bash -n asset-history/install.sh
+          bash -n asset-history/verify-server.sh
+          bash -n asset-history/manage.sh
+          bash -n asset-history/tools/install_progress.sh
+      - run: npm ci
+        working-directory: asset-history/tests/sql
+      - run: node --test history.test.mjs
+        working-directory: asset-history/tests/sql
+      - run: python3 tools/package-release.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-source-packages
+          path: dist/*.zip
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: nosdesk/nosdesk
+          ref: b4d3f2162972ba6e420ea10d16ca0fdcafeb8ac2
+          path: upstream
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: |
+          python3 frontend-extension/apply.py upstream --check
+          python3 frontend-extension/apply.py upstream
+          python3 asset-history/apply.py upstream --check
+          python3 asset-history/apply.py upstream
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+        working-directory: upstream
+      - run: pnpm --filter nosdesk-frontend type-check
+        working-directory: upstream
+      - run: pnpm --filter nosdesk-frontend build-only
+        working-directory: upstream
+      - run: pnpm --filter nosdesk-frontend exec vitest run src/plugins/assetHistoryApi.spec.ts src/plugins/assetHistoryService.spec.ts src/plugins/assetHistorySandbox.spec.ts
+        working-directory: upstream

@@ -1,0 +1,8 @@
+{
+  "name": "nosdesk-history-sql-validation",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.9"
+  }
+}

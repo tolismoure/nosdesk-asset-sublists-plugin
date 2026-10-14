@@ -1,0 +1,12 @@
+{
+  "frontend/src/composables/useAssetCategoryPlugin.ts": [
+    "34f1f6ee7ca0895580ddec798dc9c58344119a9ad2b839d27433af5a4afeb7f9"
+  ],
+  "frontend/src/utils/assetCategoryModel.mjs": [
+    "98ac3ad301be561438b17edf7d229db9e7c6a35ef600948f14c8dd39c2ab48a3"
+  ],
+  "frontend/src/views/AssetCategoriesView.vue": [
+    "a5e425a6ec7d3ac6e3d2ce5c1b587dcf726d7595c6590ab2f600c9a176d2a811",
+    "476637f4bc36f69a3f0d52b5ccb6a27d1f87aa181686a1e065facdb4108f008a"
+  ]
+}

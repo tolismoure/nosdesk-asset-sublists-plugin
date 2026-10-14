@@ -1,0 +1,23 @@
+name: History server checks
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  disposable-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: nosdesk/nosdesk
+          ref: b4d3f2162972ba6e420ea10d16ca0fdcafeb8ac2
+          path: upstream
+          persist-credentials: false
+      - run: |
+          python3 frontend-extension/apply.py upstream
+          python3 asset-history/apply.py upstream
+          bash asset-history/verify-server.sh "$PWD/upstream"
